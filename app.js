@@ -1,0 +1,1921 @@
+const tables = [
+  {
+    key: "ventures",
+    title: "Ventures",
+    singular: "Venture",
+    summary: "Companies, SPVs, clients, partners",
+    listColumns: ["name", "type", "status", "verticals", "date"],
+    fields: [
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "date", label: "Date", type: "date" },
+      { name: "type", label: "Type", type: "select", options: ["Self", "SPV", "Subsidiary", "Client", "Partner", "Vendor", "JV", "Prospect"], required: true },
+      { name: "status", label: "Status", type: "select", options: ["Prospect", "Active", "Dormant", "Closed"] },
+      { name: "verticals", label: "Verticals", type: "text", placeholder: "Comma separated" },
+      { name: "entity_form", label: "Entity form", type: "select", options: ["PvtLtd", "LLP", "Proprietorship", "Trust", "Other"] },
+      { name: "reg_no", label: "Reg no.", type: "text", placeholder: "CIN / LLPIN / GST" },
+      { name: "tags", label: "Tags", type: "text", placeholder: "Comma separated" },
+    ],
+  },
+  {
+    key: "people",
+    title: "People",
+    singular: "Person",
+    summary: "Contacts, roles, and access",
+    listColumns: ["name", "type", "venture", "access_level", "status"],
+    fields: [
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "type", label: "Type", type: "text", placeholder: "Employee, Founder..." },
+      { name: "email", label: "Email", type: "email" },
+      { name: "phone", label: "Phone", type: "tel" },
+      { name: "venture", label: "Venture", type: "text" },
+      { name: "role_title", label: "Role title", type: "text" },
+      { name: "access_level", label: "Access level", type: "select", options: ["Founder", "Partner", "Employee", "Client", "Contractor"] },
+      { name: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
+    ],
+  },
+  {
+    key: "projects",
+    title: "Projects",
+    singular: "Project",
+    summary: "Execution layers across ventures",
+    listColumns: ["name", "venture", "status", "lead", "target_date"],
+    fields: [
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "venture", label: "Venture", type: "text" },
+      { name: "vertical", label: "Vertical", type: "text" },
+      { name: "type", label: "Type", type: "select", options: ["Development", "Marketing", "Acquisition", "Leasing", "Infra", "CapitalRaise", "Logistics", "Internal"] },
+      { name: "asset", label: "Asset", type: "text" },
+      { name: "stage", label: "Stage", type: "text" },
+      { name: "status", label: "Status", type: "select", options: ["Active", "On-Hold", "Blocked", "Completed", "Cancelled"] },
+      { name: "start_date", label: "Start date", type: "date" },
+      { name: "target_date", label: "Target date", type: "date" },
+      { name: "lead", label: "Lead", type: "text" },
+      { name: "client_shareable", label: "Client shareable", type: "checkbox" },
+    ],
+  },
+  {
+    key: "tasks",
+    title: "Tasks",
+    singular: "Task",
+    summary: "Daily work, owners, deadlines",
+    listColumns: ["title", "status", "owner", "priority", "due_date"],
+    fields: [
+      { name: "title", label: "Title", type: "text", required: true },
+      { name: "project", label: "Project", type: "text" },
+      { name: "parent_task", label: "Parent task", type: "text" },
+      { name: "status", label: "Status", type: "select", options: ["Backlog", "To-Do", "In-Progress", "In-Review", "Blocked", "Done"] },
+      { name: "priority", label: "Priority", type: "select", options: ["Low", "Medium", "High", "Critical"] },
+      { name: "owner", label: "Owner", type: "text" },
+      { name: "due_date", label: "Due date", type: "date" },
+      { name: "estimate", label: "Estimate", type: "text" },
+      { name: "time_logged", label: "Time logged", type: "text" },
+      { name: "external_shared_with", label: "External shared with", type: "text" },
+    ],
+  },
+  {
+    key: "documents",
+    title: "Documents",
+    singular: "Document",
+    summary: "Notes, files, and agreements",
+    listColumns: ["title", "type", "status", "version", "date"],
+    fields: [
+      { name: "title", label: "Title", type: "text", required: true },
+      { name: "date", label: "Date", type: "date" },
+      { name: "type", label: "Type", type: "select", options: ["Note", "Report", "Agreement", "Drawing", "Photo", "Model", "Proposal", "Research", "Comms"] },
+      { name: "body", label: "Body", type: "textarea" },
+      { name: "file_ref", label: "File ref", type: "text" },
+      { name: "version", label: "Version", type: "number" },
+      { name: "status", label: "Status", type: "select", options: ["Draft", "Final", "Signed", "Superseded"] },
+      { name: "links", label: "Links", type: "text", placeholder: "ventures, projects, tasks..." },
+      { name: "permission", label: "Permission", type: "select", options: ["Internal", "Restricted", "Client-visible", "Contractor-visible"] },
+      { name: "tags", label: "Tags", type: "text", placeholder: "Comma separated" },
+    ],
+  },
+  {
+    key: "assets",
+    title: "Assets",
+    singular: "Asset",
+    summary: "Buildings, land, and units",
+    listColumns: ["name", "type", "status", "owner_ventures", "date"],
+    fields: [
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "date", label: "Date", type: "date" },
+      { name: "type", label: "Type", type: "select", options: ["Building", "Land", "Unit", "Theatre", "Warehouse", "Mixed"] },
+      { name: "address", label: "Address", type: "textarea" },
+      { name: "lat", label: "Latitude", type: "text" },
+      { name: "lng", label: "Longitude", type: "text" },
+      { name: "area", label: "Area", type: "text" },
+      { name: "unit", label: "Unit", type: "text" },
+      { name: "owner_ventures", label: "Owner ventures", type: "text" },
+      { name: "status", label: "Status", type: "select", options: ["Under-Acquisition", "Owned", "Under-Development", "Operational", "Disposed"] },
+    ],
+  },
+  {
+    key: "events",
+    title: "Events",
+    singular: "Event",
+    summary: "Meetings, visits, and calls",
+    listColumns: ["title", "type", "start", "duration", "date"],
+    fields: [
+      { name: "title", label: "Title", type: "text", required: true },
+      { name: "date", label: "Date", type: "date" },
+      { name: "type", label: "Type", type: "select", options: ["Meeting", "FieldVisit", "Call", "Inspection", "Other"] },
+      { name: "start", label: "Start", type: "datetime-local" },
+      { name: "end", label: "End", type: "datetime-local" },
+      { name: "participants", label: "Participants", type: "text", placeholder: "Comma separated people" },
+      { name: "attendees", label: "Attendees", type: "text", placeholder: "Project / task / asset" },
+      { name: "location", label: "Location", type: "text" },
+      { name: "summary", label: "Summary", type: "textarea" },
+      { name: "calendar_ref", label: "Calendar ref", type: "text" },
+    ],
+  },
+  {
+    key: "transactions",
+    title: "Transactions",
+    singular: "Transaction",
+    summary: "Receivables, payables, invoices",
+    listColumns: ["reference", "direction", "status", "amount", "due_date"],
+    fields: [
+      { name: "reference", label: "Reference", type: "text", required: true },
+      { name: "direction", label: "Direction", type: "select", options: ["Receivable", "Payable"] },
+      { name: "amount", label: "Amount", type: "text" },
+      { name: "currency", label: "Currency", type: "text", value: "INR" },
+      { name: "status", label: "Status", type: "select", options: ["Draft", "Raised", "Partly-Paid", "Paid", "Overdue", "Written-Off"] },
+      { name: "venture", label: "Venture", type: "text" },
+      { name: "counterparty", label: "Counterparty", type: "text" },
+      { name: "project_asset", label: "Project / asset", type: "text" },
+      { name: "due_date", label: "Due date", type: "date" },
+      { name: "documents", label: "Documents", type: "text", placeholder: "Linked docs" },
+    ],
+  },
+];
+
+const data = {
+  ventures: [
+    { id: "ven_1", name: "ATit Capital", date: "2026-06-01", type: "Self", status: "Active", verticals: ["Capital", "Operations"], entity_form: "PvtLtd" },
+    { id: "ven_2", name: "Aster Park SPV", date: "2026-06-03", type: "SPV", status: "Active", verticals: ["Real Estate"], entity_form: "LLP" },
+    { id: "ven_3", name: "Northline Client Co", date: "2026-06-07", type: "Client", status: "Active", verticals: ["Leasing"], entity_form: "PvtLtd" },
+    { id: "ven_4", name: "Greenfield Vendor", date: "2026-06-11", type: "Vendor", status: "Prospect", verticals: ["Operations"], entity_form: "Proprietorship" },
+  ],
+  people: [
+    { id: "peo_1", name: "Amit Shah", type: ["Founder"], email: "amit@atit.com", venture: "ATit Capital", role_title: "Founder", access_level: "Founder", status: "Active" },
+    { id: "peo_2", name: "Nina Mehta", type: ["Employee"], email: "nina@atit.com", venture: "ATit Capital", role_title: "Operations Lead", access_level: "Employee", status: "Active" },
+    { id: "peo_3", name: "Rohan Jain", type: ["Partner"], email: "rohan@northline.com", venture: "Northline Client Co", role_title: "Client Partner", access_level: "Partner", status: "Active" },
+    { id: "peo_4", name: "Karan Rao", type: ["Contractor"], email: "karan@vendor.com", venture: "Greenfield Vendor", role_title: "Field Contractor", access_level: "Contractor", status: "Active" },
+    { id: "peo_5", name: "Sonal Verma", type: ["Employee"], email: "sonal@atit.com", venture: "ATit Capital", role_title: "Legal Coordinator", access_level: "Employee", status: "Active" },
+    { id: "peo_6", name: "Priya Nair", type: ["Client"], email: "priya@northline.com", venture: "Northline Client Co", role_title: "Client Director", access_level: "Client", status: "Active" },
+  ],
+  projects: [
+    { id: "prj_1", name: "Aster Park Leasing", venture: "Aster Park SPV", vertical: "Leasing", type: "Leasing", stage: "Execution", status: "Active", lead: "Nina Mehta", target_date: "2026-07-15", client_shareable: true },
+    { id: "prj_2", name: "Northline BizDev", venture: "Northline Client Co", vertical: "Capital", type: "Internal", stage: "Scoping", status: "Active", lead: "Amit Shah", target_date: "2026-07-21", client_shareable: false },
+    { id: "prj_3", name: "ATit Internal Ops", venture: "ATit Capital", vertical: "Operations", type: "Internal", stage: "Delivery", status: "Blocked", lead: "Nina Mehta", target_date: "2026-07-30", client_shareable: false },
+    { id: "prj_4", name: "Vendor Compliance Setup", venture: "Greenfield Vendor", vertical: "Operations", type: "Internal", stage: "Execution", status: "Active", lead: "Karan Rao", target_date: "2026-07-18", client_shareable: false },
+    { id: "prj_5", name: "Northline Renewal Pack", venture: "Northline Client Co", vertical: "Leasing", type: "Leasing", stage: "Execution", status: "Active", lead: "Rohan Jain", target_date: "2026-07-25", client_shareable: true },
+  ],
+  tasks: [
+    { id: "tsk_1", title: "Collect signed lease draft", project: "Aster Park Leasing", parent_task: null, status: "In-Progress", priority: "High", owner: "Nina Mehta", external_shared_with: "Sonal Verma", due_date: "2026-06-27" },
+    { id: "tsk_2", title: "Verify title documents", project: "Aster Park Leasing", parent_task: null, status: "To-Do", priority: "Critical", owner: "Amit Shah", external_shared_with: "Karan Rao", due_date: "2026-06-26" },
+    { id: "tsk_3", title: "Prepare client status note", project: "Northline BizDev", parent_task: null, status: "Blocked", priority: "Medium", owner: "Nina Mehta", external_shared_with: "Priya Nair", due_date: "2026-06-28" },
+    { id: "tsk_4", title: "Follow up vendor onboarding", project: "ATit Internal Ops", parent_task: null, status: "Backlog", priority: "Low", owner: "Karan Rao", external_shared_with: "Sonal Verma", due_date: "2026-07-02" },
+    { id: "tsk_5", title: "Review indemnity clause", project: "Aster Park Leasing", parent_task: "Collect signed lease draft", status: "In-Review", priority: "High", owner: "Sonal Verma", external_shared_with: "Nina Mehta", due_date: "2026-06-29" },
+    { id: "tsk_6", title: "Confirm renewal assumptions", project: "Northline Renewal Pack", parent_task: null, status: "To-Do", priority: "Medium", owner: "Rohan Jain", external_shared_with: "Priya Nair", due_date: "2026-07-03" },
+    { id: "tsk_7", title: "Share occupancy numbers", project: "Northline Renewal Pack", parent_task: "Confirm renewal assumptions", status: "Backlog", priority: "Low", owner: "Priya Nair", external_shared_with: "Rohan Jain", due_date: "2026-07-04" },
+  ],
+  documents: [
+    { id: "doc_1", title: "Lease Draft v4", date: "2026-06-14", type: "Agreement", status: "Draft", version: 4, links: ["Aster Park Leasing", "Aster Park SPV", "Nina Mehta", "Sonal Verma"] },
+    { id: "doc_2", title: "Client Status Note", date: "2026-06-18", type: "Note", status: "Final", version: 2, links: ["Northline BizDev", "Northline Client Co", "Rohan Jain"] },
+    { id: "doc_3", title: "Internal Ops Checklist", date: "2026-06-22", type: "Report", status: "Draft", version: 1, links: ["ATit Internal Ops", "ATit Capital", "Amit Shah", "Nina Mehta"] },
+    { id: "doc_4", title: "Vendor KYC Pack", date: "2026-06-24", type: "Report", status: "Draft", version: 1, links: ["Vendor Compliance Setup", "Greenfield Vendor", "Karan Rao"] },
+    { id: "doc_5", title: "Renewal Financial Model", date: "2026-06-25", type: "Model", status: "Draft", version: 1, links: ["Northline Renewal Pack", "Northline Client Co", "Priya Nair", "Rohan Jain"] },
+  ],
+  events: [
+    { id: "evt_1", title: "Lease call with counsel", date: "2026-06-25", type: "Call", start: "2026-06-25 10:00", duration: "20m", project: "Aster Park Leasing", task: "Collect signed lease draft", participants: ["Nina Mehta", "Amit Shah", "Sonal Verma"] },
+    { id: "evt_2", title: "Site visit", date: "2026-06-25", type: "FieldVisit", start: "2026-06-25 13:00", duration: "45m", project: "Aster Park Leasing", task: "Verify title documents", participants: ["Amit Shah", "Karan Rao"] },
+    { id: "evt_3", title: "Partner sync", date: "2026-06-26", type: "Meeting", start: "2026-06-26 09:30", duration: "30m", project: "Northline BizDev", task: "Prepare client status note", participants: ["Rohan Jain", "Nina Mehta", "Priya Nair"] },
+    { id: "evt_4", title: "Vendor onboarding review", date: "2026-06-27", type: "Meeting", start: "2026-06-27 15:00", duration: "30m", project: "Vendor Compliance Setup", task: "Follow up vendor onboarding", participants: ["Karan Rao", "Sonal Verma"] },
+    { id: "evt_5", title: "Renewal assumptions workshop", date: "2026-06-28", type: "Meeting", start: "2026-06-28 11:00", duration: "40m", project: "Northline Renewal Pack", task: "Confirm renewal assumptions", participants: ["Rohan Jain", "Priya Nair", "Amit Shah"] },
+  ],
+  assets: [
+    { id: "ast_1", name: "Aster Park", date: "2026-05-28", type: "Building", status: "Operational", owner_ventures: ["Aster Park SPV"] },
+    { id: "ast_2", name: "Northline Unit 204", date: "2026-06-09", type: "Unit", status: "Under-Development", owner_ventures: ["Northline Client Co"] },
+    { id: "ast_3", name: "Greenfield Logistics Yard", date: "2026-06-15", type: "Land", status: "Under-Acquisition", owner_ventures: ["Greenfield Vendor"] },
+  ],
+  transactions: [
+    { id: "txn_1", reference: "INV-1042", direction: "Receivable", amount: "₹12,40,000", due_date: "2026-07-05", status: "Raised", venture: "Northline Client Co", documents: ["Renewal Financial Model"] },
+    { id: "txn_2", reference: "PO-221", direction: "Payable", amount: "₹1,25,000", due_date: "2026-07-09", status: "Draft", venture: "ATit Capital", documents: ["Internal Ops Checklist"] },
+    { id: "txn_3", reference: "ADV-778", direction: "Payable", amount: "₹2,80,000", due_date: "2026-07-01", status: "Raised", venture: "Aster Park SPV", documents: ["Lease Draft v4"] },
+  ],
+  roles: {
+    Founder: {
+      title: "Founder view",
+      items: [
+        ["Company health", "2 active projects, 1 blocked project"],
+        ["Critical tasks", "1 overdue, 1 critical due tomorrow"],
+        ["Revenue pipeline", "1 receivable raised, 1 draft payable"],
+        ["Team workload", "3 active owners across 4 people"],
+      ],
+    },
+    Partner: {
+      title: "Partner view",
+      items: [
+        ["Scope", "Filtered to partner-linked ventures"],
+        ["Open projects", "1 leasing, 1 client workstream"],
+        ["Risk", "1 blocked project needs follow-up"],
+        ["Docs", "2 shareable files in current scope"],
+      ],
+    },
+    Employee: {
+      title: "Employee view",
+      items: [
+        ["My tasks", "2 assigned, 1 in progress"],
+        ["My hours", "45 minutes logged today"],
+        ["My events", "2 meetings and 1 site visit this week"],
+        ["Next action", "Complete signed lease draft follow-up"],
+      ],
+    },
+  },
+};
+
+const userAccounts = [
+  {
+    id: "usr_1",
+    name: "ATIT Admin",
+    email: "admin@atit.com",
+    password: "admin123",
+    role: "Admin",
+    status: "Active",
+    venture_scope: "All ventures",
+    table_access: tables.map((table) => table.key),
+  },
+  {
+    id: "usr_2",
+    name: "Amit Shah",
+    email: "amit@atit.com",
+    password: "founder123",
+    role: "Founder",
+    status: "Active",
+    venture_scope: "ATit Capital",
+    table_access: ["ventures", "people", "projects", "tasks", "documents", "events", "transactions"],
+  },
+  {
+    id: "usr_3",
+    name: "Nina Mehta",
+    email: "nina@atit.com",
+    password: "ops123",
+    role: "Employee",
+    status: "Active",
+    venture_scope: "ATit Capital",
+    table_access: ["projects", "tasks", "documents", "events", "assets"],
+  },
+];
+
+const accessRoles = ["Admin", "Founder", "Partner", "Employee", "Client", "Contractor"];
+
+function seedRecordMetadata() {
+  const baseTime = Date.parse("2026-06-01T09:00:00.000Z");
+  let offset = 0;
+
+  Object.values(data).forEach((value) => {
+    if (!Array.isArray(value)) return;
+    value.forEach((row) => {
+      if (!row.createdAt) {
+        row.createdAt = new Date(baseTime + offset * 60000).toISOString();
+      }
+      offset += 1;
+    });
+  });
+}
+
+seedRecordMetadata();
+
+const state = {
+  role: "Founder",
+  projectId: "prj_1",
+  taskId: "tsk_1",
+  search: "",
+  activeTable: "projects",
+  activeNav: "dashboard",
+  modalMode: "create",
+  modalEntity: "table",
+  editingRecordId: null,
+  editingUserId: null,
+  sidebarCollapsed: true,
+  detailTableKey: null,
+  detailRecordId: null,
+  detailTreeOpen: false,
+  recordFilters: {},
+};
+
+const el = {};
+
+const arrayFields = new Set(["verticals", "tags"]);
+
+const relationFields = {
+  venture: { table: "ventures", labelField: "name" },
+  asset: { table: "assets", labelField: "name" },
+  lead: { table: "people", labelField: "name" },
+  project: { table: "projects", labelField: "name" },
+  parent_task: { table: "tasks", labelField: "title" },
+  owner: { table: "people", labelField: "name" },
+  owner_ventures: { table: "ventures", labelField: "name", multiple: true },
+  participants: { table: "people", labelField: "name", multiple: true },
+  attendees: { tables: ["ventures", "projects", "tasks", "assets"], multiple: true },
+  links: { tables: ["ventures", "people", "projects", "tasks", "documents", "assets", "events", "transactions"], multiple: true },
+  counterparty: { table: "ventures", labelField: "name" },
+  project_asset: { tables: ["projects", "assets"] },
+  documents: { table: "documents", labelField: "title", multiple: true },
+};
+
+const sidebarItems = [
+  { key: "dashboard", label: "Dashboard", kind: "dashboard", count: null },
+  ...tables.map((table) => ({ key: table.key, label: table.title, kind: "table" })),
+  { key: "admin", label: "Admin", kind: "admin", count: null },
+];
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatList(value) {
+  if (Array.isArray(value) && value.length && typeof value[0] === "object" && value[0] !== null) {
+    return value
+      .map((item) => {
+        const venture = item.venture || item.name || item.title || "—";
+        const stake = item.stake ? ` (${item.stake}%)` : "";
+        return `${venture}${stake}`;
+      })
+      .join(", ");
+  }
+  if (Array.isArray(value)) return value.join(", ");
+  return value ?? "—";
+}
+
+function getRecordLabel(tableKey, row) {
+  if (!row) return "";
+  return row.name || row.title || row.reference || row.id || "";
+}
+
+function getEntryLabel(entry) {
+  if (entry == null) return "";
+  if (typeof entry === "object") {
+    return entry.venture || entry.name || entry.title || entry.reference || entry.label || "";
+  }
+  return String(entry);
+}
+
+function getEntryStake(entry) {
+  if (!entry || typeof entry !== "object") return "";
+  return entry.stake ?? "";
+}
+
+function getRecordAddedAt(row) {
+  return row?.createdAt ? new Date(row.createdAt).getTime() : 0;
+}
+
+function getRecordFilterState(tableKey) {
+  if (!state.recordFilters[tableKey]) {
+    state.recordFilters[tableKey] = {
+      venture: "all",
+      project: "all",
+      order: "newest",
+    };
+  }
+  return state.recordFilters[tableKey];
+}
+
+function getFilterOptions(tableKey, fieldName) {
+  const rows = data[tableKey] ?? [];
+  const values = new Set();
+  const targetTableKey = fieldName === "venture" ? "ventures" : fieldName === "project" ? "projects" : null;
+
+  rows.forEach((row) => {
+    const rawValue = row?.[fieldName];
+    if (Array.isArray(rawValue)) {
+      rawValue.forEach((item) => values.add(String(item)));
+    } else if (rawValue) {
+      values.add(String(rawValue));
+    }
+
+    if (!targetTableKey) return;
+
+    const connections = getRecordConnections(tableKey, row);
+    connections.forEach((connection) => {
+      connection.items.forEach((item) => {
+        if (item.tableKey === targetTableKey) {
+          const label = getRecordLabel(item.tableKey, item.row);
+          if (label) values.add(String(label));
+        }
+      });
+    });
+  });
+
+  return Array.from(values).sort((a, b) => a.localeCompare(b));
+}
+
+function getRowFilterMatchValue(row, fieldName) {
+  const value = row?.[fieldName];
+  if (Array.isArray(value)) return value.map((item) => getEntryLabel(item)).filter(Boolean);
+  return value ? [String(value)] : [];
+}
+
+function getLinkedFilterValues(tableKey, row, fieldName) {
+  const targetTableKey = fieldName === "venture" ? "ventures" : fieldName === "project" ? "projects" : null;
+  if (!targetTableKey) return [];
+
+  const values = [];
+  const connections = getRecordConnections(tableKey, row);
+  connections.forEach((connection) => {
+    connection.items.forEach((item) => {
+      if (item.tableKey === targetTableKey) {
+        const label = getRecordLabel(item.tableKey, item.row);
+        if (label) values.push(String(label));
+      }
+    });
+  });
+  return values;
+}
+
+function getFilteredAndSortedRows(table) {
+  const query = state.search.trim().toLowerCase();
+  const filters = getRecordFilterState(table.key);
+
+  let rows = data[table.key].filter((row) => {
+    if (query) {
+      const matchesSearch = table.listColumns.some((column) => formatCell(table.key, column, row).toLowerCase().includes(query));
+      if (!matchesSearch) return false;
+    }
+
+    if (filters.venture !== "all") {
+      const ventureValues = getRowFilterMatchValue(row, "venture");
+      const linkedVentureValues = getLinkedFilterValues(table.key, row, "venture");
+      if (![...ventureValues, ...linkedVentureValues].includes(filters.venture)) return false;
+    }
+
+    if (filters.project !== "all") {
+      const projectValues = getRowFilterMatchValue(row, "project");
+      const linkedProjectValues = getLinkedFilterValues(table.key, row, "project");
+      if (![...projectValues, ...linkedProjectValues].includes(filters.project)) return false;
+    }
+
+    return true;
+  });
+
+  rows = rows.slice().sort((left, right) => {
+    const diff = getRecordAddedAt(right) - getRecordAddedAt(left);
+    return filters.order === "oldest" ? -diff : diff;
+  });
+
+  return rows;
+}
+
+function getRelationConfig(fieldName) {
+  return relationFields[fieldName] ?? null;
+}
+
+function getRelationOptions(fieldName, currentTableKey, record = null) {
+  const relation = getRelationConfig(fieldName);
+  if (!relation) return [];
+
+  const sourceTables = relation.tables ?? [relation.table];
+  return sourceTables.flatMap((tableKey) => {
+    const table = tables.find((item) => item.key === tableKey);
+    const rows = data[tableKey] ?? [];
+    return rows
+      .filter((row) => !(fieldName === "parent_task" && currentTableKey === "tasks" && row.id === record?.id))
+      .map((row) => {
+        const value = relation.labelField ? row[relation.labelField] : getRecordLabel(tableKey, row);
+        const display = sourceTables.length > 1 && table ? `${value} (${table.title})` : value;
+        return {
+          value: String(value ?? ""),
+          label: String(display ?? ""),
+        };
+      })
+      .filter((option) => option.value);
+  });
+}
+
+function getTableByKey(tableKey) {
+  return tables.find((item) => item.key === tableKey) ?? null;
+}
+
+function getRowsByFieldValue(tableKey, fieldName, value) {
+  const rows = data[tableKey] ?? [];
+  return rows.filter((row) => {
+    const fieldValue = row[fieldName];
+    if (Array.isArray(fieldValue)) return fieldValue.map(String).includes(String(value));
+    return String(fieldValue ?? "") === String(value);
+  });
+}
+
+function getRecordReferenceLabel(tableKey, row) {
+  const table = getTableByKey(tableKey);
+  const primary = row.name || row.title || row.reference || row.id;
+  const subtitle = table?.title ? table.title : tableKey;
+  return `${primary} · ${subtitle}`;
+}
+
+function getRecordConnections(tableKey, record) {
+  const connections = [];
+  const row = record ?? {};
+  const rowLabel = getRecordLabel(tableKey, row);
+  const getConnectionLabel = (targetKey, fallback = "") => getTableByKey(targetKey)?.title ?? titleCaseKey(fallback || targetKey);
+
+  const findRelatedRecord = (sourceTables, value, relation) => {
+    for (const sourceTableKey of sourceTables) {
+      const rows = data[sourceTableKey] ?? [];
+      const found = rows.find((candidate) => {
+        const candidateValue = relation?.labelField ? candidate[relation.labelField] : getRecordLabel(sourceTableKey, candidate);
+        return String(candidateValue) === String(value);
+      });
+      if (found) {
+        return {
+          label: getRecordReferenceLabel(sourceTableKey, found),
+          tableKey: sourceTableKey,
+          id: found.id,
+          row: found,
+        };
+      }
+    }
+    return null;
+  };
+
+  const addConnection = (label, items, key = null, kind = "linked") => {
+    if (!items.length) return;
+    connections.push({ label: getConnectionLabel(key, label), key, kind, items });
+  };
+
+  const relations = Object.entries(relationFields);
+  relations.forEach(([fieldName, relation]) => {
+    if (tableKey === "assets" && fieldName === "owner_ventures") return;
+    const value = row[fieldName];
+    if (!value) return;
+    const sourceTables = relation.tables ?? [relation.table];
+    const values = Array.isArray(value) ? value : [value];
+    const items = values
+      .map((item) => {
+        const normalized = getEntryLabel(item);
+        return findRelatedRecord(sourceTables, normalized, relation);
+      })
+      .filter(Boolean);
+    addConnection(fieldName.replaceAll("_", " "), items, sourceTables[0], "context");
+  });
+
+  if (tableKey === "ventures") {
+    addConnection(
+      "people",
+      getRowsByFieldValue("people", "venture", rowLabel).map((item) => ({
+        label: getRecordReferenceLabel("people", item),
+        tableKey: "people",
+        id: item.id,
+        row: item,
+      })),
+      "people",
+      "linked",
+    );
+    addConnection(
+      "projects",
+      getRowsByFieldValue("projects", "venture", rowLabel).map((item) => ({
+        label: getRecordReferenceLabel("projects", item),
+        tableKey: "projects",
+        id: item.id,
+        row: item,
+      })),
+      "projects",
+      "linked",
+    );
+    addConnection(
+      "transactions",
+      getRowsByFieldValue("transactions", "venture", rowLabel).map((item) => ({
+        label: getRecordReferenceLabel("transactions", item),
+        tableKey: "transactions",
+        id: item.id,
+        row: item,
+      })),
+      "transactions",
+      "linked",
+    );
+  }
+
+  if (tableKey === "assets") {
+    const ownerItems = (Array.isArray(row.owner_ventures) ? row.owner_ventures : [])
+      .map((entry) => {
+        const ventureName = getEntryLabel(entry);
+        if (!ventureName) return null;
+        const found = data.ventures.find((item) => item.name === ventureName) ?? null;
+        if (!found) return null;
+        const stake = getEntryStake(entry);
+        return {
+          label: `${found.name}${stake ? ` · ${stake}%` : ""}`,
+          tableKey: "ventures",
+          id: found.id,
+          row: found,
+        };
+      })
+      .filter(Boolean);
+    addConnection("ventures", ownerItems, "ventures", "context");
+  }
+
+  if (tableKey === "projects") {
+    addConnection(
+      "tasks",
+      getRowsByFieldValue("tasks", "project", rowLabel).map((item) => ({
+        label: getRecordReferenceLabel("tasks", item),
+        tableKey: "tasks",
+        id: item.id,
+        row: item,
+      })),
+      "tasks",
+      "linked",
+    );
+    addConnection(
+      "events",
+      getRowsByFieldValue("events", "project", rowLabel).map((item) => ({
+        label: getRecordReferenceLabel("events", item),
+        tableKey: "events",
+        id: item.id,
+        row: item,
+      })),
+      "events",
+      "linked",
+    );
+    addConnection(
+      "documents",
+      getRowsByFieldValue("documents", "links", rowLabel).map((item) => ({
+        label: getRecordReferenceLabel("documents", item),
+        tableKey: "documents",
+        id: item.id,
+        row: item,
+      })),
+      "documents",
+      "linked",
+    );
+  }
+
+  if (tableKey === "people") {
+    addConnection(
+      "ventures",
+      row.venture ? [{
+        label: row.venture,
+        tableKey: "ventures",
+        id: data.ventures.find((item) => item.name === row.venture)?.id ?? null,
+        row: data.ventures.find((item) => item.name === row.venture) ?? null,
+      }].filter((item) => item.row) : [],
+      "ventures",
+      "context",
+    );
+    addConnection(
+      "projects",
+      getRowsByFieldValue("projects", "lead", rowLabel).map((item) => ({
+        label: getRecordReferenceLabel("projects", item),
+        tableKey: "projects",
+        id: item.id,
+        row: item,
+      })),
+      "projects",
+      "linked",
+    );
+    addConnection(
+      "tasks",
+      getRowsByFieldValue("tasks", "owner", rowLabel).map((item) => ({
+        label: getRecordReferenceLabel("tasks", item),
+        tableKey: "tasks",
+        id: item.id,
+        row: item,
+      })),
+      "tasks",
+      "linked",
+    );
+    addConnection(
+      "events",
+      getRowsByFieldValue("events", "participants", rowLabel).map((item) => ({
+        label: getRecordReferenceLabel("events", item),
+        tableKey: "events",
+        id: item.id,
+        row: item,
+      })),
+      "events",
+      "linked",
+    );
+    addConnection(
+      "documents",
+      getRowsByFieldValue("documents", "links", rowLabel).map((item) => ({
+        label: getRecordReferenceLabel("documents", item),
+        tableKey: "documents",
+        id: item.id,
+        row: item,
+      })),
+      "documents",
+      "linked",
+    );
+  }
+
+  if (tableKey === "tasks") {
+    const peopleItems = [row.owner, row.external_shared_with]
+      .filter(Boolean)
+      .map((name) => {
+        const found = data.people.find((item) => item.name === name) ?? null;
+        if (!found) return null;
+        return {
+          label: name,
+          tableKey: "people",
+          id: found.id,
+          row: found,
+        };
+      })
+      .filter((item, index, array) => item && array.findIndex((candidate) => candidate.id === item.id) === index);
+
+    addConnection(
+      "projects",
+      row.project ? [{
+        label: row.project,
+        tableKey: "projects",
+        id: data.projects.find((item) => item.name === row.project)?.id ?? null,
+        row: data.projects.find((item) => item.name === row.project) ?? null,
+      }].filter((item) => item.row) : [],
+      "projects",
+      "context",
+    );
+    addConnection(
+      "people",
+      peopleItems,
+      "people",
+      "context",
+    );
+  }
+
+  return connections;
+}
+
+function getTreeNodeKey(tableKey, record) {
+  return `${tableKey}:${record?.id ?? record?.name ?? record?.title ?? ""}`;
+}
+
+function buildConnectionTree(tableKey, record, depth = 0, visited = new Set()) {
+  const nodeKey = getTreeNodeKey(tableKey, record);
+  const nextVisited = new Set(visited);
+  nextVisited.add(nodeKey);
+
+  if (depth >= 3) {
+    return null;
+  }
+
+  const connections = getRecordConnections(tableKey, record);
+  const children = [];
+
+  connections.forEach((connection) => {
+    const branchChildren = connection.items
+      .map((item) => {
+        if (!item?.row || !item?.id) return null;
+        const childKey = getTreeNodeKey(item.tableKey, item.row);
+        if (nextVisited.has(childKey)) return null;
+
+        return buildConnectionTree(item.tableKey, item.row, depth + 1, nextVisited);
+      })
+      .filter(Boolean);
+
+    if (!branchChildren.length) return;
+
+    children.push({
+      isGroup: true,
+      label: connection.label,
+      children: branchChildren,
+    });
+  });
+
+  return {
+    id: record.id,
+    tableKey,
+    label: getRecordLabel(tableKey, record),
+    iconKey: tableKey,
+    isRoot: depth === 0,
+    children,
+  };
+}
+
+function renderConnectionTreeNode(node) {
+  const nodeClass = node.isRoot
+    ? "connection-node connection-node-root"
+    : node.isGroup
+      ? "connection-node connection-node-group"
+      : "connection-node";
+
+  const attrs = node.isGroup
+    ? ""
+    : `type="button" data-tree-open="${escapeHtml(node.tableKey)}" data-tree-record="${escapeHtml(node.id ?? "")}"`;
+
+  const iconMarkup = !node.isGroup && node.iconKey
+    ? `<span class="connection-node-icon" aria-hidden="true">${getTableIcon(node.iconKey)}</span>`
+    : "";
+
+  return `
+    <li>
+      ${node.isGroup
+        ? `<div class="${nodeClass}"><span>${escapeHtml(node.label)}</span></div>`
+        : `<button class="${nodeClass}" ${attrs}>${iconMarkup}<span>${escapeHtml(node.label)}</span></button>`}
+      ${node.children?.length ? `<ul>${node.children.map((child) => renderConnectionTreeNode(child)).join("")}</ul>` : ""}
+    </li>
+  `;
+}
+
+function renderDetailTree(tableKey, record) {
+  const root = buildConnectionTree(tableKey, record);
+
+  if (!root || !root.children.length) {
+    return `<div class="detail-empty">No connected records found.</div>`;
+  }
+
+  return `
+    <div class="detail-tree-canvas">
+      <div class="detail-tree-graph">
+        <ul class="detail-tree-list">
+          ${renderConnectionTreeNode(root)}
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+function renderRecordDetail(table, record) {
+  const rows = table.fields.map((field) => {
+    const value = getFieldDisplayValue(field, record);
+    const display = Array.isArray(record?.[field.name]) ? record[field.name].join(", ") : value || "—";
+    return `
+      <div class="detail-field">
+        <div class="detail-field-label">${escapeHtml(field.label)} :</div>
+        <div class="detail-field-value">${escapeHtml(display)}</div>
+      </div>
+    `;
+  }).join("");
+
+  const connections = getRecordConnections(table.key, record);
+
+  return `
+    <div class="detail-view">
+      <div class="detail-header">
+        <div class="detail-header-main">
+          <button class="detail-back-button" type="button" data-detail-action="back" aria-label="Back to list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+          </button>
+          <div>
+            <h2>${escapeHtml(record.name || record.title || record.reference || table.singular)}</h2>
+          </div>
+        </div>
+        <div class="detail-actions">
+          <button class="record-action-button" type="button" data-detail-action="tree">${state.detailTreeOpen ? "Hide tree" : "Tree view"}</button>
+          <button class="record-action-button" type="button" data-detail-action="edit">Edit</button>
+          <button class="record-action-button" type="button" data-detail-action="delete">Delete</button>
+        </div>
+      </div>
+      <div class="detail-grid">
+        ${rows}
+      </div>
+      <section class="detail-linked">
+        <div class="detail-linked-head">
+          <h3>Linked records - auto-assembled</h3>
+        </div>
+        ${state.detailTreeOpen ? `<div class="detail-tree">${renderDetailTree(table.key, record)}</div>` : `
+          <div class="detail-linked-groups">
+            ${connections.map((connection) => `
+              <div class="detail-linked-group">
+                <div class="detail-linked-group-head">${escapeHtml(connection.label)} (${connection.items.length})</div>
+                <div class="detail-linked-list">
+                  ${connection.items.map((item) => `
+                    <button class="linked-record-row" type="button" data-tree-open="${escapeHtml(item.tableKey)}" data-tree-record="${escapeHtml(item.id ?? "")}">
+                      <span class="linked-record-label">${escapeHtml(item.label)}</span>
+                      <span class="linked-record-arrow">›</span>
+                    </button>
+                  `).join("")}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `}
+      </section>
+    </div>
+  `;
+}
+
+function allRecords() {
+  return Object.entries(data)
+    .filter(([, value]) => Array.isArray(value))
+    .flatMap(([table, rows]) => rows.map((row) => ({ table, ...row })));
+}
+
+function countLinks() {
+  const fields = ["venture", "project", "task", "links", "participants", "owner_ventures"];
+  return Object.values(data).reduce((sum, table) => {
+    if (!Array.isArray(table)) return sum;
+    return sum + table.reduce((tableSum, row) => {
+      return tableSum + fields.reduce((fieldSum, field) => {
+        const value = row[field];
+        if (Array.isArray(value)) return fieldSum + value.length;
+        return value ? fieldSum + 1 : fieldSum;
+      }, 0);
+    }, 0);
+  }, 0);
+}
+
+function renderMeta() {
+  return;
+}
+
+function getSidebarToggleIcon() {
+  return state.sidebarCollapsed
+    ? `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 18 6-6-6-6"></path>
+      </svg>
+    `
+    : `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m15 18-6-6 6-6"></path>
+      </svg>
+    `;
+}
+
+function applySidebarState() {
+  el.layout.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+  el.sidebarToggle.innerHTML = getSidebarToggleIcon();
+  el.sidebarToggle.setAttribute("aria-expanded", String(!state.sidebarCollapsed));
+  el.sidebarToggle.setAttribute("aria-label", state.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar");
+}
+
+function renderSidebarNav() {
+  el.sidebarNav.innerHTML = sidebarItems.map((item) => {
+    const count = item.kind === "table" ? `<span class="sidebar-nav-count">${data[item.key].length}</span>` : "";
+    const active = state.activeNav === item.key ? "active" : "";
+    const dividerClass = item.key === "transactions" ? " sidebar-nav-item-divider" : "";
+    return `
+      <button class="sidebar-nav-item ${active}${dividerClass}" type="button" data-sidebar-key="${item.key}" data-sidebar-kind="${item.kind}" data-sidebar-label="${escapeHtml(item.label)}" aria-label="${escapeHtml(item.label)}" title="${escapeHtml(item.label)}">
+        <span class="sidebar-nav-icon" aria-hidden="true">${getTableIcon(item.key)}</span>
+        <span class="sidebar-nav-label">${escapeHtml(item.label)}</span>
+        ${count}
+      </button>
+    `;
+  }).join("");
+
+  el.sidebarNav.querySelectorAll("[data-sidebar-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const { sidebarKey, sidebarKind } = button.dataset;
+      state.activeNav = sidebarKey;
+      state.search = "";
+      state.detailTableKey = null;
+      state.detailRecordId = null;
+      state.detailTreeOpen = false;
+      if (el.modal?.classList.contains("open")) closeForm();
+      renderSidebarNav();
+      if (sidebarKind === "table") {
+        state.activeTable = sidebarKey;
+        renderHeroPanel();
+      }
+      if (sidebarKind === "dashboard") {
+        renderHeroPanel();
+      }
+      if (sidebarKind === "admin") {
+        renderHeroPanel();
+      }
+    });
+  });
+}
+
+function renderBoard() {
+  el.board.innerHTML = tables.map((table) => `
+    <article class="table-tile" data-open-list="${table.key}">
+      <div class="table-tile-head">
+        <div class="table-count">${data[table.key].length}</div>
+        <button class="table-action-button" type="button" data-open-form="${table.key}" aria-label="Add ${escapeHtml(table.singular || table.title)}">+</button>
+      </div>
+      <div class="table-meta">
+        <span class="table-icon" aria-hidden="true">${getTableIcon(table.key)}</span>
+        <div class="table-title">${escapeHtml(table.title)}</div>
+      </div>
+    </article>
+  `).join("");
+
+  el.board.querySelectorAll("[data-open-list]").forEach((card) => {
+    card.addEventListener("click", () => {
+      state.activeNav = card.dataset.openList;
+      state.activeTable = card.dataset.openList;
+      state.search = "";
+      renderSidebarNav();
+      renderHeroPanel();
+    });
+  });
+
+  el.board.querySelectorAll("[data-open-form]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openForm(button.dataset.openForm);
+    });
+  });
+}
+
+function getTableIcon(key) {
+  const icons = {
+    dashboard: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+        <rect x="14" y="3" width="7" height="5" rx="1.5"></rect>
+        <rect x="14" y="12" width="7" height="9" rx="1.5"></rect>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+      </svg>
+    `,
+    ventures: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 20V9l8-5 8 5v11"></path>
+        <path d="M9 20v-6h6v6"></path>
+      </svg>
+    `,
+    people: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9.5" cy="7" r="3"></circle>
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 4.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+    `,
+    projects: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 7h7l2 2h9v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path>
+      </svg>
+    `,
+    tasks: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+        <path d="M8 8h8"></path>
+        <path d="M8 12h8"></path>
+        <path d="m8 16 2 2 4-4"></path>
+      </svg>
+    `,
+    documents: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path>
+        <path d="M14 3v5h5"></path>
+        <path d="M9 13h6"></path>
+        <path d="M9 17h6"></path>
+      </svg>
+    `,
+    assets: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3z"></path>
+        <path d="m4 7.5 8 4.5 8-4.5"></path>
+        <path d="M12 12v9"></path>
+      </svg>
+    `,
+    events: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+        <path d="M16 3v4"></path>
+        <path d="M8 3v4"></path>
+        <path d="M3 10h18"></path>
+      </svg>
+    `,
+    transactions: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2.5" y="6" width="19" height="12" rx="2"></rect>
+        <path d="M2.5 10.5h19"></path>
+        <path d="M7 14h3"></path>
+      </svg>
+    `,
+    admin: `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l7 4v5c0 4.5-2.7 7.9-7 9-4.3-1.1-7-4.5-7-9V7l7-4z"></path>
+        <path d="M12 8v8"></path>
+        <path d="M8.5 11.5h7"></path>
+      </svg>
+    `,
+  };
+  return icons[key] ?? icons.dashboard;
+}
+
+function titleCaseKey(key) {
+  return key.replaceAll("_", " ");
+}
+
+function formatCell(tableKey, column, row) {
+  const value = row[column];
+  if (value == null || value === "") return "—";
+  if (Array.isArray(value)) return formatList(value);
+  if (tableKey === "people" && column === "type") return formatList(value);
+  return String(value);
+}
+
+function renderRecordsBody(table, rows) {
+  return rows.map((row) => `
+    <tr data-open-detail="${escapeHtml(table.key)}" data-record-id="${escapeHtml(row.id)}">
+      ${table.listColumns.map((column) => `<td>${escapeHtml(formatCell(table.key, column, row))}</td>`).join("")}
+      <td class="records-actions-cell">
+        <button class="record-action-button" type="button" data-record-action="edit" data-record-id="${escapeHtml(row.id)}">Edit</button>
+        <button class="record-action-button" type="button" data-record-action="delete" data-record-id="${escapeHtml(row.id)}">Delete</button>
+      </td>
+    </tr>
+  `).join("") || `<tr><td colspan="${table.listColumns.length + 1}">No records</td></tr>`;
+}
+
+function getVentureTone(value) {
+  if (!value) return "tone-1";
+  const tones = ["tone-1", "tone-2", "tone-3", "tone-4", "tone-5"];
+  let sum = 0;
+  for (const char of String(value)) sum += char.charCodeAt(0);
+  return tones[sum % tones.length];
+}
+
+function renderPeopleRecords(rows) {
+  if (!rows.length) return `<div class="people-empty">No records</div>`;
+
+  const groups = new Map();
+  rows.forEach((row) => {
+    const venture = row.venture || "Unassigned";
+    if (!groups.has(venture)) groups.set(venture, []);
+    groups.get(venture).push(row);
+  });
+
+  return Array.from(groups.entries()).map(([venture, people]) => `
+    <section class="people-group ${getVentureTone(venture)}">
+      <div class="people-group-head">
+        <h3><span class="venture-dot" aria-hidden="true"></span>${escapeHtml(venture)}</h3>
+        <span>${people.length}</span>
+      </div>
+      <div class="people-group-list">
+        ${people.map((row) => `
+          <article class="person-card ${getVentureTone(venture)}" data-open-detail="people" data-record-id="${escapeHtml(row.id)}">
+            <div class="person-card-main">
+              <strong>${escapeHtml(row.name || "Unnamed")}</strong>
+              <div class="person-card-meta">
+                <span>${escapeHtml(formatCell("people", "type", row))}</span>
+                <span>${escapeHtml(row.access_level || "No access")}</span>
+                <span>${escapeHtml(row.status || "No status")}</span>
+              </div>
+            </div>
+            <div class="person-card-actions">
+              <button class="record-action-button" type="button" data-record-action="edit" data-record-id="${escapeHtml(row.id)}">Edit</button>
+              <button class="record-action-button" type="button" data-record-action="delete" data-record-id="${escapeHtml(row.id)}">Delete</button>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `).join("");
+}
+
+function updateRecordsTable(table) {
+  const rows = getFilteredAndSortedRows(table);
+  el.recordsCount.textContent = `${rows.length} records`;
+  if (table.key === "people") {
+    el.recordsContent.innerHTML = renderPeopleRecords(rows);
+  } else {
+    el.recordsTableBody.innerHTML = renderRecordsBody(table, rows);
+  }
+  bindRecordRowActions(table);
+  bindRecordOpenActions(table);
+}
+
+function renderRecordsToolbar(table, rows, filters, ventureOptions, projectOptions) {
+  const showVentureFilter = ventureOptions.length > 0;
+  const showProjectFilter = projectOptions.length > 0;
+  const searchPlaceholder = `Search ${escapeHtml(table.title.toLowerCase())}...`;
+
+  return `
+    <div class="records-toolbar">
+      <div class="records-toolbar-title">
+        <h2>${escapeHtml(table.title)}</h2>
+        <p id="records-count">${rows.length} records</p>
+      </div>
+      <div class="records-toolbar-search">
+        <input id="records-search" class="records-search" type="search" placeholder="${searchPlaceholder}" value="${escapeHtml(state.search)}" />
+      </div>
+      <div class="records-toolbar-actions">
+        <div class="records-toolbar-options">
+          ${showVentureFilter ? `
+            <label class="records-filter">
+              <select id="records-venture-filter">
+                <option value="all" ${filters.venture === "all" ? "selected" : ""}>All ventures</option>
+                ${ventureOptions.map((option) => `<option value="${escapeHtml(option)}" ${filters.venture === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+              </select>
+            </label>
+          ` : ""}
+          ${showProjectFilter ? `
+            <label class="records-filter">
+              <select id="records-project-filter">
+                <option value="all" ${filters.project === "all" ? "selected" : ""}>All projects</option>
+                ${projectOptions.map((option) => `<option value="${escapeHtml(option)}" ${filters.project === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+              </select>
+            </label>
+          ` : ""}
+          <label class="records-filter">
+            <select id="records-order-filter">
+              <option value="newest" ${filters.order === "newest" ? "selected" : ""}>Newest first</option>
+              <option value="oldest" ${filters.order === "oldest" ? "selected" : ""}>Oldest first</option>
+            </select>
+          </label>
+        </div>
+        <button id="new-record-button" class="new-record-button" type="button">+ Add</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderRecordsTable(table) {
+  const rows = getFilteredAndSortedRows(table);
+  const filters = getRecordFilterState(table.key);
+  const ventureOptions = getFilterOptions(table.key, "venture");
+  const projectOptions = getFilterOptions(table.key, "project");
+  const toolbar = renderRecordsToolbar(table, rows, filters, ventureOptions, projectOptions);
+
+  if (table.key === "people") {
+    return `
+      ${toolbar}
+      <div id="records-content" class="people-records">
+        ${renderPeopleRecords(rows)}
+      </div>
+    `;
+  }
+
+  const headers = `${table.listColumns.map((column) => `<th>${escapeHtml(titleCaseKey(column))}</th>`).join("")}<th>Actions</th>`;
+
+  return `
+    ${toolbar}
+    <div class="records-table-wrap">
+      <table class="records-table">
+        <thead>
+          <tr>${headers}</tr>
+        </thead>
+        <tbody id="records-table-body">
+          ${renderRecordsBody(table, rows)}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function bindRecordRowActions(table) {
+  el.heroPanel.querySelectorAll("[data-record-action]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const { recordAction, recordId } = button.dataset;
+      if (recordAction === "edit") {
+        openForm(table.key, recordId);
+      }
+      if (recordAction === "delete") {
+        deleteRecord(table.key, recordId);
+      }
+    });
+  });
+}
+
+function openRecordDetail(tableKey, recordId) {
+  state.detailTableKey = tableKey;
+  state.detailRecordId = recordId;
+  state.detailTreeOpen = false;
+  renderHeroPanel();
+}
+
+function bindRecordOpenActions(table) {
+  el.heroPanel.querySelectorAll("[data-open-detail]").forEach((item) => {
+    item.addEventListener("click", () => {
+      const { openDetail, recordId } = item.dataset;
+      openRecordDetail(openDetail || table.key, recordId);
+    });
+  });
+}
+
+function getActiveDetailRecord() {
+  if (!state.detailTableKey || !state.detailRecordId) return null;
+  const table = getTableByKey(state.detailTableKey);
+  if (!table) return null;
+  const record = data[table.key].find((item) => item.id === state.detailRecordId) ?? null;
+  return record ? { table, record } : null;
+}
+
+function renderHeroPanel() {
+  const detail = getActiveDetailRecord();
+  if (detail && detail.table.key === state.activeNav) {
+    el.heroPanel.innerHTML = renderRecordDetail(detail.table, detail.record);
+    el.heroPanel.querySelectorAll("[data-detail-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const action = button.dataset.detailAction;
+        if (action === "back") {
+          state.detailTableKey = null;
+          state.detailRecordId = null;
+          state.detailTreeOpen = false;
+          renderHeroPanel();
+          return;
+        }
+        if (action === "edit") openForm(detail.table.key, detail.record.id);
+        if (action === "delete") {
+          deleteRecord(detail.table.key, detail.record.id);
+          state.detailTableKey = null;
+          state.detailRecordId = null;
+        }
+        if (action === "tree") {
+          state.detailTreeOpen = !state.detailTreeOpen;
+          renderHeroPanel();
+        }
+      });
+    });
+    el.heroPanel.querySelectorAll("[data-tree-open]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const { treeOpen, treeRecord } = button.dataset;
+        if (!treeRecord) return;
+        openRecordDetail(treeOpen, treeRecord);
+      });
+    });
+    return;
+  }
+
+  if (state.activeNav === "dashboard") {
+    el.heroPanel.innerHTML = `
+      <div class="hero-minimal">
+        <div class="hero-head">
+          <div class="hero-kicker">create</div>
+        </div>
+        <div id="board" class="board" aria-label="Create tables"></div>
+      </div>
+    `;
+    el.board = document.getElementById("board");
+    renderBoard();
+    return;
+  }
+
+  if (state.activeNav === "admin") {
+    el.heroPanel.innerHTML = `
+      <section class="panel admin-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Admin</h2>
+            <p>Create users, passwords, and access control.</p>
+          </div>
+        </div>
+        ${renderAdminWorkspace()}
+      </section>
+    `;
+    bindAdminWorkspaceEvents();
+    return;
+  }
+
+  const table = tables.find((item) => item.key === state.activeNav) ?? tables[0];
+  el.heroPanel.innerHTML = renderRecordsTable(table);
+  el.recordsSearch = document.getElementById("records-search");
+  el.recordsCount = document.getElementById("records-count");
+  el.recordsContent = document.getElementById("records-content");
+  el.recordsTableBody = document.getElementById("records-table-body");
+  el.newRecordButton = document.getElementById("new-record-button");
+  el.recordsSearch.addEventListener("input", (event) => {
+    state.search = event.target.value;
+    updateRecordsTable(table);
+  });
+  el.recordsVentureFilter = document.getElementById("records-venture-filter");
+  el.recordsProjectFilter = document.getElementById("records-project-filter");
+  el.recordsOrderFilter = document.getElementById("records-order-filter");
+  if (el.recordsVentureFilter) {
+    el.recordsVentureFilter.addEventListener("change", (event) => {
+      getRecordFilterState(table.key).venture = event.target.value;
+      updateRecordsTable(table);
+    });
+  }
+  if (el.recordsProjectFilter) {
+    el.recordsProjectFilter.addEventListener("change", (event) => {
+      getRecordFilterState(table.key).project = event.target.value;
+      updateRecordsTable(table);
+    });
+  }
+  if (el.recordsOrderFilter) {
+    el.recordsOrderFilter.addEventListener("change", (event) => {
+      getRecordFilterState(table.key).order = event.target.value;
+      updateRecordsTable(table);
+    });
+  }
+  el.newRecordButton.addEventListener("click", () => openForm(table.key));
+  bindRecordRowActions(table);
+  bindRecordOpenActions(table);
+}
+
+function renderSelectors() {
+  if (!el.projectSelect || !el.taskSelect) return;
+
+  el.projectSelect.innerHTML = data.projects
+    .map((project) => `<option value="${project.id}" ${state.projectId === project.id ? "selected" : ""}>${project.name}</option>`)
+    .join("");
+
+  el.taskSelect.innerHTML = data.tasks
+    .map((task) => `<option value="${task.id}" ${state.taskId === task.id ? "selected" : ""}>${task.title}</option>`)
+    .join("");
+}
+
+function renderDashboard() {
+  return;
+}
+
+function renderAdminWorkspace() {
+  return `
+    <div class="admin-workspace">
+      <div class="admin-workspace-head">
+        <div>
+          <div class="mini">Users</div>
+          <strong>${userAccounts.length} active records for access control</strong>
+        </div>
+        <button class="new-record-button" type="button" id="add-user-button">+ Add user</button>
+      </div>
+      <div class="admin-user-list">
+        ${userAccounts.map((user) => `
+          <article class="admin-user-card" data-user-id="${escapeHtml(user.id)}">
+            <div class="admin-user-main">
+              <div class="admin-user-title-row">
+                <strong>${escapeHtml(user.name)}</strong>
+                <span class="admin-user-role">${escapeHtml(user.role)}</span>
+              </div>
+              <div class="admin-user-meta">
+                <span>${escapeHtml(user.email)}</span>
+                <span>${escapeHtml(user.status)}</span>
+                <span>${escapeHtml(user.venture_scope || "All ventures")}</span>
+              </div>
+              <div class="admin-user-password">Password: ${escapeHtml(user.password)}</div>
+              <div class="admin-user-access">
+                ${user.table_access.map((tableKey) => `<span class="admin-access-chip">${escapeHtml(getTableByKey(tableKey)?.title ?? tableKey)}</span>`).join("")}
+              </div>
+            </div>
+            <div class="admin-user-actions">
+              <button class="record-action-button" type="button" data-user-action="edit" data-user-id="${escapeHtml(user.id)}">Edit</button>
+              <button class="record-action-button" type="button" data-user-action="delete" data-user-id="${escapeHtml(user.id)}">Delete</button>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function bindAdminWorkspaceEvents() {
+  document.getElementById("add-user-button")?.addEventListener("click", () => {
+    openAdminUserForm();
+  });
+
+  document.querySelectorAll("[data-user-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const { userAction, userId } = button.dataset;
+      if (userAction === "edit") openAdminUserForm(userId);
+      if (userAction === "delete") deleteAdminUser(userId);
+    });
+  });
+}
+
+function renderSearch() {
+  return;
+}
+
+function summarizeRecord(record) {
+  const parts = [];
+  if (record.status) parts.push(`Status ${record.status}`);
+  if (record.type) parts.push(`Type ${Array.isArray(record.type) ? record.type.join(", ") : record.type}`);
+  if (record.project) parts.push(`Project ${record.project}`);
+  if (record.venture) parts.push(`Venture ${record.venture}`);
+  if (record.due_date) parts.push(`Due ${record.due_date}`);
+  if (record.direction) parts.push(`Direction ${record.direction}`);
+  return parts.join(" · ") || "Linked record";
+}
+
+function getFieldDisplayValue(field, record) {
+  const rawValue = record?.[field.name];
+  if (rawValue == null) return "";
+  if (Array.isArray(rawValue)) return formatList(rawValue);
+  return String(rawValue);
+}
+
+function renderOwnershipRow(entry = {}, index = 0, options = []) {
+  const label = entry.venture ?? entry.name ?? entry.label ?? "";
+  const stake = entry.stake ?? "";
+  return `
+    <div class="ownership-row" data-ownership-row>
+      <label class="ownership-field">
+        <span>Venture</span>
+        <select name="owner_ventures_venture_${index}">
+          <option value="">Select venture</option>
+          ${options.map((option) => `<option value="${escapeHtml(option.value)}" ${label === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+      <label class="ownership-field stake-field">
+        <span>Stake %</span>
+        <input name="owner_ventures_stake_${index}" type="number" min="0" step="0.01" value="${escapeHtml(stake)}" placeholder="0" />
+      </label>
+      <button class="ownership-remove" type="button" data-ownership-remove aria-label="Remove venture">×</button>
+    </div>
+  `;
+}
+
+function renderOwnershipRepeater(record = null, currentTableKey = "") {
+  const ventureOptions = getRelationOptions("owner_ventures", currentTableKey, record);
+  const values = Array.isArray(record?.owner_ventures) && record.owner_ventures.length
+    ? record.owner_ventures.map((entry) => (typeof entry === "object" && entry !== null ? entry : { venture: entry, stake: "" }))
+    : [{ venture: "", stake: "" }];
+
+  return `
+    <div class="ownership-repeater" data-ownership-repeater>
+      <div class="ownership-repeater-head">
+        <span>Owner ventures</span>
+        <button class="ownership-add" type="button" data-ownership-add>+ Add venture</button>
+      </div>
+      <div class="ownership-repeater-list" data-ownership-list>
+        ${values.map((entry, index) => renderOwnershipRow(entry, index, ventureOptions)).join("")}
+      </div>
+      <small class="form-hint">Choose a venture, enter stake %, and add another row if needed.</small>
+    </div>
+  `;
+}
+
+function renderField(field, record = null, currentTableKey = "") {
+  const required = field.required ? "required" : "";
+  const fieldValue = record ? getFieldDisplayValue(field, record) : field.value ?? "";
+  const valueAttr = fieldValue ? `value="${escapeHtml(fieldValue)}"` : "";
+  const placeholder = field.placeholder ? `placeholder="${escapeHtml(field.placeholder)}"` : "";
+  const label = `${escapeHtml(field.label)}${field.required ? " *" : ""}`;
+  const relation = getRelationConfig(field.name);
+  const relationOptions = relation ? getRelationOptions(field.name, currentTableKey, record) : [];
+  const selectedValues = Array.isArray(record?.[field.name])
+    ? record[field.name].map((value) => String(value))
+    : fieldValue
+      ? [String(fieldValue)]
+      : [];
+
+  if (currentTableKey === "assets" && field.name === "owner_ventures") {
+    return renderOwnershipRepeater(record, currentTableKey);
+  }
+
+  if (relation) {
+    const multiple = relation.multiple ? "multiple" : "";
+    const multipleClass = relation.multiple ? " relation-select" : "";
+    const hint = relation.multiple ? `<small class="form-hint">Select one or more existing records.</small>` : "";
+    return `
+      <label class="form-field">
+        <span>${label}</span>
+        <select class="${multipleClass.trim()}" name="${escapeHtml(field.name)}" ${required} ${multiple}>
+          ${relation.multiple ? "" : `<option value="">Select</option>`}
+          ${relationOptions.map((option) => `<option value="${escapeHtml(option.value)}" ${selectedValues.includes(option.value) ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+        ${hint}
+      </label>
+    `;
+  }
+
+  if (field.type === "textarea") {
+    return `
+      <label class="form-field">
+        <span>${label}</span>
+        <textarea name="${escapeHtml(field.name)}" rows="4" ${required} ${placeholder}>${escapeHtml(fieldValue)}</textarea>
+      </label>
+    `;
+  }
+
+  if (field.type === "select") {
+    return `
+      <label class="form-field">
+        <span>${label}</span>
+        <select name="${escapeHtml(field.name)}" ${required}>
+          <option value="">Select</option>
+          ${field.options.map((option) => `<option value="${escapeHtml(option)}" ${fieldValue === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  if (field.type === "checkbox") {
+    return `
+      <label class="form-field checkbox-field">
+        <input name="${escapeHtml(field.name)}" type="checkbox" ${record?.[field.name] ? "checked" : ""} />
+        <span>${label}</span>
+      </label>
+    `;
+  }
+
+  return `
+    <label class="form-field">
+      <span>${label}</span>
+      <input name="${escapeHtml(field.name)}" type="${escapeHtml(field.type)}" ${required} ${valueAttr} ${placeholder} />
+    </label>
+  `;
+}
+
+function renderAdminUserForm(user = null) {
+  const ventureOptions = ["All ventures", ...data.ventures.map((venture) => venture.name)];
+  const selectedTables = user?.table_access ?? [];
+
+  return `
+    <label class="form-field">
+      <span>Name *</span>
+      <input name="user_name" type="text" value="${escapeHtml(user?.name ?? "")}" required />
+    </label>
+    <label class="form-field">
+      <span>Email *</span>
+      <input name="user_email" type="email" value="${escapeHtml(user?.email ?? "")}" required />
+    </label>
+    <label class="form-field">
+      <span>Password *</span>
+      <input name="user_password" type="text" value="${escapeHtml(user?.password ?? "")}" required />
+    </label>
+    <label class="form-field">
+      <span>Role *</span>
+      <select name="user_role" required>
+        ${accessRoles.map((roleKey) => `<option value="${escapeHtml(roleKey)}" ${user?.role === roleKey ? "selected" : ""}>${escapeHtml(roleKey)}</option>`).join("")}
+      </select>
+    </label>
+    <label class="form-field">
+      <span>Status *</span>
+      <select name="user_status" required>
+        ${["Active", "Suspended"].map((status) => `<option value="${status}" ${user?.status === status ? "selected" : ""}>${status}</option>`).join("")}
+      </select>
+    </label>
+    <label class="form-field">
+      <span>Venture scope</span>
+      <select name="user_venture_scope">
+        ${ventureOptions.map((option) => `<option value="${escapeHtml(option)}" ${(user?.venture_scope ?? "All ventures") === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}
+      </select>
+    </label>
+    <fieldset class="admin-access-fieldset">
+      <legend>Table access</legend>
+      <div class="admin-access-grid">
+        ${tables.map((table) => `
+          <label class="admin-access-option">
+            <input type="checkbox" name="user_table_access" value="${escapeHtml(table.key)}" ${selectedTables.includes(table.key) ? "checked" : ""} />
+            <span>${escapeHtml(table.title)}</span>
+          </label>
+        `).join("")}
+      </div>
+    </fieldset>
+  `;
+}
+
+function openForm(key, recordId = null) {
+  const table = tables.find((item) => item.key === key);
+  if (!table) return;
+  const record = recordId ? data[key].find((item) => item.id === recordId) ?? null : null;
+  state.activeTable = key;
+  state.modalEntity = "table";
+  state.modalMode = record ? "edit" : "create";
+  state.editingRecordId = record?.id ?? null;
+  state.editingUserId = null;
+  el.modalTitle.textContent = record ? "Edit" : "Add";
+  el.modalSubtitle.textContent = `${table.fields.length} fields`;
+  el.form.innerHTML = table.fields.map((field) => renderField(field, record, key)).join("");
+  el.saveButton.textContent = record ? "Save changes" : "Create";
+  el.modal.classList.add("open");
+  document.body.classList.add("modal-open");
+  bindOwnershipRepeater(key);
+}
+
+function openAdminUserForm(userId = null) {
+  const user = userId ? userAccounts.find((item) => item.id === userId) ?? null : null;
+  state.modalEntity = "user";
+  state.modalMode = user ? "edit" : "create";
+  state.editingUserId = user?.id ?? null;
+  state.editingRecordId = null;
+  el.modalTitle.textContent = user ? "Edit user" : "Add user";
+  el.modalSubtitle.textContent = "Password and access control";
+  el.form.innerHTML = renderAdminUserForm(user);
+  el.saveButton.textContent = user ? "Save user" : "Create user";
+  el.modal.classList.add("open");
+  document.body.classList.add("modal-open");
+}
+
+function bindOwnershipRepeater(tableKey) {
+  const repeater = el.formElement.querySelector("[data-ownership-repeater]");
+  if (!repeater || tableKey !== "assets") return;
+  const list = repeater.querySelector("[data-ownership-list]");
+  const addButton = repeater.querySelector("[data-ownership-add]");
+  const ventureOptions = getRelationOptions("owner_ventures", tableKey);
+  let rowIndex = list.querySelectorAll("[data-ownership-row]").length;
+
+  const buildRow = (entry = {}) => {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = renderOwnershipRow(entry, rowIndex, ventureOptions).trim();
+    rowIndex += 1;
+    const row = wrapper.firstElementChild;
+    row.querySelector("[data-ownership-remove]")?.addEventListener("click", () => {
+      if (list.querySelectorAll("[data-ownership-row]").length <= 1) {
+        row.querySelectorAll("select,input").forEach((input) => {
+          if (input.tagName === "SELECT") input.value = "";
+          else input.value = "";
+        });
+        return;
+      }
+      row.remove();
+    });
+    return row;
+  };
+
+  addButton?.addEventListener("click", () => {
+    list.appendChild(buildRow());
+  });
+
+  list.querySelectorAll("[data-ownership-row]").forEach((row) => {
+    row.querySelector("[data-ownership-remove]")?.addEventListener("click", () => {
+      if (list.querySelectorAll("[data-ownership-row]").length <= 1) {
+        row.querySelectorAll("select,input").forEach((input) => {
+          if (input.tagName === "SELECT") input.value = "";
+          else input.value = "";
+        });
+        return;
+      }
+      row.remove();
+    });
+  });
+}
+
+function closeForm() {
+  el.modal.classList.remove("open");
+  document.body.classList.remove("modal-open");
+  state.modalMode = "create";
+  state.modalEntity = "table";
+  state.editingRecordId = null;
+  state.editingUserId = null;
+}
+
+function buildRecordFromForm(table) {
+  const formData = new FormData(el.formElement);
+  const record = {};
+
+  table.fields.forEach((field) => {
+    if (field.type === "checkbox") {
+      record[field.name] = el.formElement.elements[field.name].checked;
+      return;
+    }
+
+    if (table.key === "assets" && field.name === "owner_ventures") {
+      const rows = Array.from(el.formElement.querySelectorAll("[data-ownership-row]"));
+      record[field.name] = rows
+        .map((row) => {
+          const venture = row.querySelector(`select[name^="owner_ventures_venture_"]`)?.value?.trim() ?? "";
+          const stake = row.querySelector(`input[name^="owner_ventures_stake_"]`)?.value?.trim() ?? "";
+          if (!venture) return null;
+          return { venture, stake };
+        })
+        .filter(Boolean);
+      return;
+    }
+
+    const relation = getRelationConfig(field.name);
+    if (relation?.multiple) {
+      record[field.name] = formData.getAll(field.name).map((value) => String(value).trim()).filter(Boolean);
+      return;
+    }
+
+    const rawValue = String(formData.get(field.name) ?? "").trim();
+    if (!rawValue) {
+      record[field.name] = "";
+      return;
+    }
+
+    if (arrayFields.has(field.name)) {
+      record[field.name] = rawValue.split(",").map((item) => item.trim()).filter(Boolean);
+      return;
+    }
+
+    if (field.type === "number") {
+      record[field.name] = Number(rawValue);
+      return;
+    }
+
+    record[field.name] = rawValue;
+  });
+
+  return record;
+}
+
+function saveRecord() {
+  const table = tables.find((item) => item.key === state.activeTable);
+  if (!table) return;
+
+  const payload = buildRecordFromForm(table);
+
+  if (state.modalMode === "edit" && state.editingRecordId) {
+    const index = data[table.key].findIndex((item) => item.id === state.editingRecordId);
+    if (index >= 0) {
+      data[table.key][index] = { ...data[table.key][index], ...payload };
+    }
+  } else {
+    data[table.key].unshift({
+      id: `${table.key.slice(0, 3)}_${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      ...payload,
+    });
+  }
+
+  closeForm();
+  renderAll();
+}
+
+function saveAdminUser() {
+  const formData = new FormData(el.formElement);
+  const payload = {
+    name: String(formData.get("user_name") ?? "").trim(),
+    email: String(formData.get("user_email") ?? "").trim(),
+    password: String(formData.get("user_password") ?? "").trim(),
+    role: String(formData.get("user_role") ?? "Employee").trim(),
+    status: String(formData.get("user_status") ?? "Active").trim(),
+    venture_scope: String(formData.get("user_venture_scope") ?? "All ventures").trim(),
+    table_access: formData.getAll("user_table_access").map((value) => String(value)),
+  };
+
+  if (state.modalMode === "edit" && state.editingUserId) {
+    const index = userAccounts.findIndex((item) => item.id === state.editingUserId);
+    if (index >= 0) userAccounts[index] = { ...userAccounts[index], ...payload };
+  } else {
+    userAccounts.unshift({
+      id: `usr_${Date.now()}`,
+      ...payload,
+    });
+  }
+
+  closeForm();
+  renderAll();
+}
+
+function deleteAdminUser(userId) {
+  const user = userAccounts.find((item) => item.id === userId);
+  if (!user) return;
+  if (!window.confirm(`Delete ${user.name}?`)) return;
+  const index = userAccounts.findIndex((item) => item.id === userId);
+  if (index >= 0) userAccounts.splice(index, 1);
+  renderAll();
+}
+
+function deleteRecord(tableKey, recordId) {
+  const table = tables.find((item) => item.key === tableKey);
+  if (!table) return;
+  const row = data[tableKey].find((item) => item.id === recordId);
+  const label = row?.name || row?.title || row?.reference || table.singular || table.title;
+  if (!window.confirm(`Delete ${label}?`)) return;
+  data[tableKey] = data[tableKey].filter((item) => item.id !== recordId);
+  renderAll();
+}
+
+function bindEvents() {
+  el.sidebarToggle.addEventListener("click", () => {
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    applySidebarState();
+  });
+
+  if (el.projectSelect) {
+    el.projectSelect.addEventListener("change", (event) => {
+      state.projectId = event.target.value;
+    });
+  }
+
+  if (el.taskSelect) {
+    el.taskSelect.addEventListener("change", (event) => {
+      state.taskId = event.target.value;
+      const task = data.tasks.find((item) => item.id === state.taskId);
+      const project = data.projects.find((item) => item.name === task?.project);
+      if (project) state.projectId = project.id;
+    });
+  }
+
+  el.modal.addEventListener("click", (event) => {
+    if (event.target === el.modal) closeForm();
+  });
+
+  el.closeButton.addEventListener("click", closeForm);
+  el.formElement.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (state.modalEntity === "user") saveAdminUser();
+    else saveRecord();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeForm();
+  });
+}
+
+function renderAll() {
+  renderMeta();
+  applySidebarState();
+  renderSidebarNav();
+  renderHeroPanel();
+  renderSelectors();
+  renderDashboard();
+  renderSearch();
+}
+
+function init() {
+  el.layout = document.querySelector(".layout");
+  el.sidebarNav = document.getElementById("sidebar-nav");
+  el.sidebarToggle = document.getElementById("sidebar-toggle");
+  el.heroPanel = document.getElementById("hero-panel");
+  el.modal = document.getElementById("modal");
+  el.modalTitle = document.getElementById("modal-title");
+  el.modalSubtitle = document.getElementById("modal-subtitle");
+  el.formElement = document.querySelector(".form");
+  el.form = document.getElementById("form");
+  el.closeButton = document.getElementById("close-button");
+  el.saveButton = document.getElementById("save-button");
+
+  bindEvents();
+  renderAll();
+}
+
+init();
