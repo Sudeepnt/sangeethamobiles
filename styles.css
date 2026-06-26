@@ -43,15 +43,20 @@ body.modal-open {
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
   background: #ffffff;
   color: #0b0b0b;
   border-right: 1px solid var(--line);
 }
 
 .sidebar-shell {
-  display: grid;
-  align-content: start;
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  height: 100%;
   padding: 26px 7px 22px;
   gap: 22px;
 }
@@ -82,7 +87,7 @@ body.modal-open {
 
 .sidebar-logo {
   display: block;
-  width: 96px;
+  width: 48px;
   height: auto;
   object-fit: contain;
 }
@@ -111,6 +116,86 @@ body.modal-open {
 .sidebar-nav {
   display: grid;
   gap: 2px;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-content: start;
+  overflow-y: auto;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.sidebar-user-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 10px 8px;
+}
+
+.sidebar-user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #bfeef0;
+  color: #26737a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sidebar-user-copy {
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.sidebar-logout {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sidebar-logout svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.sidebar-logout:hover {
+  background: rgba(11, 11, 11, 0.06);
+  color: var(--text);
 }
 
 .sidebar-nav-item {
@@ -137,8 +222,8 @@ body.modal-open {
 }
 
 .sidebar-nav-item.active {
-  border-color: #0b0b0b;
-  background: #ffffff;
+  border-color: transparent;
+  background: rgba(11, 11, 11, 0.14);
   color: #0b0b0b;
 }
 
@@ -183,7 +268,8 @@ body.modal-open {
 }
 
 .layout.sidebar-collapsed .sidebar-nav-label,
-.layout.sidebar-collapsed .sidebar-nav-count {
+.layout.sidebar-collapsed .sidebar-nav-count,
+.layout.sidebar-collapsed .sidebar-user-copy {
   display: none;
 }
 
@@ -200,6 +286,13 @@ body.modal-open {
   position: relative;
   grid-template-columns: 1fr;
   justify-items: center;
+  padding: 10px 0;
+}
+
+.layout.sidebar-collapsed .sidebar-user-card {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 8px;
   padding: 10px 0;
 }
 
@@ -607,7 +700,8 @@ input[type="search"] {
 .records-event-badge,
 .records-document-status-badge,
 .records-direction-badge,
-.records-asset-status-badge {
+.records-asset-status-badge,
+.records-venture-status-badge {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
@@ -625,7 +719,8 @@ input[type="search"] {
 .records-event-badge,
 .records-document-status-badge,
 .records-direction-badge,
-.records-asset-status-badge {
+.records-asset-status-badge,
+.records-venture-status-badge {
   padding: 4px 9px;
 }
 
@@ -771,6 +866,30 @@ input[type="search"] {
 }
 
 .records-asset-status-disposed {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(254, 226, 226, 0.92);
+}
+
+.records-venture-status-prospect {
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.24);
+  background: rgba(219, 234, 254, 0.92);
+}
+
+.records-venture-status-active {
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.2);
+  background: rgba(220, 252, 231, 0.92);
+}
+
+.records-venture-status-dormant {
+  color: #9ca3af;
+  border-color: rgba(156, 163, 175, 0.26);
+  background: rgba(243, 244, 246, 0.92);
+}
+
+.records-venture-status-closed {
   color: #dc2626;
   border-color: rgba(220, 38, 38, 0.2);
   background: rgba(254, 226, 226, 0.92);

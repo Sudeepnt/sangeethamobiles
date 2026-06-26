@@ -1075,7 +1075,7 @@ function renderSidebarNav() {
   el.sidebarNav.innerHTML = sidebarItems.map((item) => {
     const count = item.kind === "table" ? `<span class="sidebar-nav-count">${data[item.key].length}</span>` : "";
     const active = state.activeNav === item.key ? "active" : "";
-    const dividerClass = item.key === "transactions" ? " sidebar-nav-item-divider" : "";
+    const dividerClass = ["dashboard", "transactions"].includes(item.key) ? " sidebar-nav-item-divider" : "";
     return `
       <button class="sidebar-nav-item ${active}${dividerClass}" type="button" data-sidebar-key="${item.key}" data-sidebar-kind="${item.kind}" data-sidebar-label="${escapeHtml(item.label)}" aria-label="${escapeHtml(item.label)}" title="${escapeHtml(item.label)}">
         <span class="sidebar-nav-icon" aria-hidden="true">${getTableIcon(item.key)}</span>
@@ -1107,6 +1107,53 @@ function renderSidebarNav() {
         renderHeroPanel();
       }
     });
+  });
+}
+
+function getCurrentSidebarUser() {
+  return userAccounts.find((user) => user.role === state.role) ?? userAccounts[0];
+}
+
+function getInitials(name) {
+  return String(name || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function renderSidebarFooter() {
+  const user = getCurrentSidebarUser();
+  if (!user || !el.sidebarFooter) return;
+
+  el.sidebarFooter.innerHTML = `
+    <div class="sidebar-user-card">
+      <div class="sidebar-user-avatar">${escapeHtml(getInitials(user.name) || "AT")}</div>
+      <div class="sidebar-user-copy">
+        <div class="sidebar-user-name">${escapeHtml(user.name)}</div>
+        <div class="sidebar-user-role">${escapeHtml(user.role)}</div>
+      </div>
+      <button id="sidebar-logout" class="sidebar-logout" type="button" aria-label="Logout" title="Logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 17l5-5-5-5"></path>
+          <path d="M20 12H9"></path>
+          <path d="M13 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"></path>
+        </svg>
+      </button>
+    </div>
+  `;
+
+  document.getElementById("sidebar-logout")?.addEventListener("click", () => {
+    state.activeNav = "dashboard";
+    state.search = "";
+    state.detailTableKey = null;
+    state.detailRecordId = null;
+    state.detailTreeOpen = false;
+    clearDetailHistory();
+    renderSidebarNav();
+    renderSidebarFooter();
+    renderHeroPanel();
   });
 }
 
@@ -1486,6 +1533,10 @@ function renderAssetStatusBadge(status, variant = "records") {
   return renderBadge(status, variant, "asset-status");
 }
 
+function renderVentureStatusBadge(status, variant = "records") {
+  return renderBadge(status, variant, "venture-status");
+}
+
 function formatCell(tableKey, column, row) {
   const value = row[column];
   if (value == null || value === "") return "—";
@@ -1507,6 +1558,9 @@ function renderCellMarkup(tableKey, column, row) {
   }
   if (tableKey === "assets" && column === "status" && value !== "—") {
     return renderAssetStatusBadge(value, "records");
+  }
+  if (tableKey === "ventures" && column === "status" && value !== "—") {
+    return renderVentureStatusBadge(value, "records");
   }
   if (tableKey === "events" && column === "type" && value !== "—") {
     return renderEventTypeBadge(value, "records");
@@ -2430,6 +2484,7 @@ function renderAll() {
   renderMeta();
   applySidebarState();
   renderSidebarNav();
+  renderSidebarFooter();
   renderHeroPanel();
   renderSelectors();
   renderDashboard();
@@ -2439,6 +2494,7 @@ function renderAll() {
 function init() {
   el.layout = document.querySelector(".layout");
   el.sidebarNav = document.getElementById("sidebar-nav");
+  el.sidebarFooter = document.getElementById("sidebar-footer");
   el.homeButton = document.getElementById("home-button");
   el.sidebarToggle = document.getElementById("sidebar-toggle");
   el.heroPanel = document.getElementById("hero-panel");
