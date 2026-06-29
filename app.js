@@ -4151,6 +4151,7 @@ let sangeethaProperties = [
     rsf: 154,
     deposit: 1850000,
     source: "Broker",
+    introducedBy: "ATIT Realty Advisory",
     daysInStage: 42,
     lease: { start: "2023-04-01", expiry: "2026-09-30", lock: 36, notice: 90, rent: 185000, rsf: 154, escDate: "2027-04-01", escPct: 8, deposit: 1850000, renewal: "due" },
     licenses: [
@@ -4195,6 +4196,7 @@ let sangeethaProperties = [
     rsf: 118,
     deposit: 1420000,
     source: "Referral",
+    introducedBy: "Ashok Consultants",
     daysInStage: 88,
     lease: { start: "2022-11-01", expiry: "2026-07-15", lock: 24, notice: 60, rent: 142000, rsf: 118, escDate: "2026-11-01", escPct: 7, deposit: 1420000, renewal: "negotiating" },
     licenses: [
@@ -4233,6 +4235,7 @@ let sangeethaProperties = [
     rsf: 90,
     deposit: 720000,
     source: "Broker",
+    introducedBy: "RR Groups",
     daysInStage: 30,
     lease: { start: "2024-02-01", expiry: "2027-01-31", lock: 24, notice: 60, rent: 72000, rsf: 90, escDate: "2027-02-01", escPct: 7, deposit: 720000, renewal: "active" },
     licenses: [{ type: "Trade License", authority: "Mysuru City Corp.", issue: "2024-02-01", expiry: "2027-02-01", status: "valid" }],
@@ -4262,6 +4265,7 @@ let sangeethaProperties = [
     rsf: 88,
     deposit: 880000,
     source: "Broker",
+    introducedBy: "Coastal Retail Brokers",
     daysInStage: 12,
   },
   {
@@ -4280,6 +4284,7 @@ let sangeethaProperties = [
     rsf: 80,
     deposit: 640000,
     source: "Referral",
+    introducedBy: "Hubli Asset Desk",
     daysInStage: 7,
   },
   {
@@ -4298,6 +4303,7 @@ let sangeethaProperties = [
     rsf: 72,
     deposit: 580000,
     source: "Scout",
+    introducedBy: "Prakash Naik",
     daysInStage: 4,
   },
   {
@@ -4316,6 +4322,7 @@ let sangeethaProperties = [
     rsf: 65,
     deposit: 460000,
     source: "Walk-in",
+    introducedBy: "Mandya Property Circle",
     daysInStage: 18,
   },
   {
@@ -4334,6 +4341,7 @@ let sangeethaProperties = [
     rsf: 68,
     deposit: 540000,
     source: "Broker",
+    introducedBy: "Ashok Consultants",
     daysInStage: 66,
     lease: { start: "2021-06-01", expiry: "2026-08-05", lock: 24, notice: 60, rent: 54000, rsf: 68, escDate: "2026-12-01", escPct: 6, deposit: 540000, renewal: "due" },
     licenses: [
@@ -4362,6 +4370,7 @@ let sangeethaProperties = [
     rsf: 70,
     deposit: 500000,
     source: "Broker",
+    introducedBy: "ATIT Realty Advisory",
     daysInStage: 120,
     rejectionReason: "Visibility was weak and landlord would not accept the brand frontage spec.",
     history: [{ from: "under_review", to: "rejected", note: "Rejected after site visit", by: "R. Hegde", at: "2026-06-12" }],
@@ -5341,11 +5350,17 @@ function sangeethaRenderList() {
       <table class="sd-grid">
         <thead>
           <tr>
+            <th>S/N</th>
             <th data-sort="name">Property</th>
             <th data-sort="city">City</th>
+            <th>Locality</th>
             <th data-sort="stage">Stage</th>
+            <th>Source</th>
+            <th>Introduced by</th>
             <th data-sort="rent_per_sqft">Rent/sq.ft</th>
             <th data-sort="size_carpet">Size (sf)</th>
+            <th>Frontage</th>
+            <th>Days in stage</th>
             <th data-sort="lease_expiry">Lease expiry</th>
             <th data-sort="compliance">Compliance</th>
             <th data-sort="open_issues">Issues Raised</th>
@@ -5354,16 +5369,21 @@ function sangeethaRenderList() {
         </thead>
         <tbody>
           ${rows
-            .map((property) => {
+            .map((property, index) => {
               const compliance = sangeethaComplianceStatus(property);
-              const lease = sangeethaLeaseChip(property);
               return `
                 <tr data-property-open="${escapeHtml(property.id)}">
+                  <td>${index + 1}</td>
                   <td>${escapeHtml(property.name)}</td>
                   <td>${escapeHtml(property.city)}</td>
+                  <td>${escapeHtml(property.locality || "—")}</td>
                   <td>${escapeHtml(sangeethaStageLabel(property.stage))}</td>
+                  <td>${escapeHtml(property.source || "—")}</td>
+                  <td>${escapeHtml(property.introducedBy || "—")}</td>
                   <td>₹${property.rsf}</td>
                   <td>${property.size}</td>
+                  <td>${property.frontage ? `${escapeHtml(String(property.frontage))} ft` : "—"}</td>
+                  <td>${escapeHtml(String(property.daysInStage ?? 0))}</td>
                   <td>${property.lease ? escapeHtml(property.lease.expiry) : "—"}</td>
                   <td>${compliance ? `<span class="sd-chip-status ${compliance === "expired" ? "bad" : compliance === "expiring" ? "due" : "ok"}">${escapeHtml(compliance)}</span>` : "—"}</td>
                   <td class="sd-grid-issues">${property.stage === "live" ? escapeHtml(sangeethaOpenIssueSummary(property)) : "—"}</td>
