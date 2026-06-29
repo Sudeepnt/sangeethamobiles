@@ -1033,6 +1033,7 @@ const state = {
   recordFilters: {},
   taskExpanded: {},
   ganttWeekStart: null,
+  ganttScale: "week",
 };
 
 const el = {};
@@ -1082,6 +1083,10 @@ const sidebarItems = [
 
 const peopleTypeHierarchy = ["Founder", "Investor", "Partner", "Client", "Vendor", "Consultant", "Contractor", "Employee"];
 const peopleTypeRank = new Map(peopleTypeHierarchy.map((type, index) => [type, index]));
+const durationUnits = [
+  { value: "h", label: "Hours" },
+  { value: "d", label: "Days" },
+];
 
 function escapeHtml(value) {
   return String(value)
@@ -1104,6 +1109,39 @@ function formatList(value) {
   }
   if (Array.isArray(value)) return value.join(", ");
   return value ?? "—";
+}
+
+function parseDurationValue(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) return null;
+
+  const match = normalized.match(/^(\d+(?:\.\d+)?)\s*([a-z]+)$/);
+  if (!match) return null;
+
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  const unitToken = match[2];
+  const unit = ["d", "day", "days"].includes(unitToken)
+    ? "d"
+    : ["h", "hr", "hrs", "hour", "hours"].includes(unitToken)
+      ? "h"
+      : null;
+
+  if (!unit) return null;
+  return { amount, unit };
+}
+
+function formatDurationValue(amount, unit) {
+  if (!Number.isFinite(amount) || amount <= 0) return "";
+  const normalizedAmount = String(amount).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+  return `${normalizedAmount}${unit}`;
+}
+
+function convertDurationToHours(value) {
+  const parsed = parseDurationValue(value);
+  if (!parsed) return 0;
+  return parsed.unit === "d" ? parsed.amount * 8 : parsed.amount;
 }
 
 function getRecordLabel(tableKey, row) {
@@ -1371,7 +1409,9 @@ function getRecordAddedAt(row) {
 function mapRecordToSupabase(tableKey, record) {
   const { createdAt, ...rest } = record;
   const defaults = jsonColumnDefaults[tableKey] ?? {};
-  const normalized = { ...rest };
+  const normalized = Object.fromEntries(
+    Object.entries(rest).map(([column, value]) => [column, value === "" ? null : value]),
+  );
   Object.entries(defaults).forEach(([column, fallback]) => {
     if (normalized[column] == null || normalized[column] === "") {
       normalized[column] = Array.isArray(fallback) ? [...fallback] : fallback;
@@ -1416,7 +1456,11 @@ async function hydrateDataFromSupabase() {
 async function syncRecordToSupabase(tableKey, record) {
   if (!REMOTE_TABLE_KEYS.has(tableKey) || !supabaseClient) return;
   const payload = mapRecordToSupabase(tableKey, record);
-  const { error } = await supabaseClient.from(tableKey).upsert(payload, { onConflict: "id" });
+  const hasExistingRecord = data[tableKey]?.some((item) => item.id === record.id);
+  const query = hasExistingRecord
+    ? supabaseClient.from(tableKey).update(payload).eq("id", record.id)
+    : supabaseClient.from(tableKey).insert(payload);
+  const { error } = await query;
   if (error) throw error;
 }
 
@@ -2700,6 +2744,12 @@ function getDateOnlyKey(value) {
   return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
 }
 
+function getLocalDateKey(value) {
+  const date = value instanceof Date ? value : getDateAtDayStart(value);
+  if (!date || Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function getDateAtDayStart(value) {
   const key = getDateOnlyKey(value);
   return key ? new Date(`${key}T00:00:00`) : null;
@@ -2740,9 +2790,17 @@ function getGanttWeekStart() {
     : getCenteredWeekStart(getTodayKey());
 }
 
+function getGanttScale() {
+  return state.ganttScale === "month" ? "month" : "week";
+}
+
+function setGanttScale(value) {
+  state.ganttScale = value === "month" ? "month" : "week";
+}
+
 function setGanttWeekStart(value) {
   const next = value instanceof Date ? value : (getDateAtDayStart(value) || getCenteredWeekStart(getTodayKey()));
-  state.ganttWeekStart = getDateOnlyKey(next.toISOString());
+  state.ganttWeekStart = getLocalDateKey(next);
 }
 
 function syncGanttUrl(startDate, replace = false) {
@@ -2753,7 +2811,10 @@ function syncGanttUrl(startDate, replace = false) {
 }
 
 function shiftGanttWindow(days) {
-  const nextStart = addDays(getGanttWeekStart(), Number(days) || 0);
+  const step = Number(days) || 0;
+  const nextStart = getGanttScale() === "month"
+    ? addMonths(getGanttWeekStart(), step)
+    : addDays(getGanttWeekStart(), step);
   setGanttWeekStart(nextStart);
   syncGanttUrl(nextStart);
   renderHeroPanel();
@@ -2767,7 +2828,9 @@ function jumpGanttMonth(months) {
 }
 
 function resetGanttToday() {
-  const nextStart = getCenteredWeekStart(getTodayKey());
+  const nextStart = getGanttScale() === "month"
+    ? getDateAtDayStart(getTodayKey())
+    : getCenteredWeekStart(getTodayKey());
   setGanttWeekStart(nextStart);
   syncGanttUrl(nextStart);
   renderHeroPanel();
@@ -2786,7 +2849,8 @@ globalThis.openGanttRecord = openGanttRecord;
 function getGanttViewHref(startDate) {
   const url = new URL(window.location.href);
   url.searchParams.set("view", "gantt");
-  url.searchParams.set("gantt", getDateOnlyKey((startDate instanceof Date ? startDate : getDateAtDayStart(startDate) || getGanttWeekStart()).toISOString()));
+  url.searchParams.set("gantt", getLocalDateKey(startDate instanceof Date ? startDate : getDateAtDayStart(startDate) || getGanttWeekStart()));
+  url.searchParams.set("scale", getGanttScale());
   return `${url.pathname}${url.search}`;
 }
 
@@ -2794,6 +2858,7 @@ function applyUrlState() {
   const params = new URLSearchParams(window.location.search);
   const view = params.get("view");
   const gantt = params.get("gantt");
+  const scale = params.get("scale");
 
   if (view === "gantt") {
     state.activeNav = "gantt";
@@ -2801,6 +2866,9 @@ function applyUrlState() {
 
   if (gantt) {
     state.ganttWeekStart = gantt;
+  }
+  if (scale) {
+    setGanttScale(scale);
   }
 }
 
@@ -3060,24 +3128,34 @@ function getGanttTimelineItems() {
 }
 
 function renderGanttChart() {
+  const ganttScale = getGanttScale();
   const weekStart = getGanttWeekStart();
-  const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
-  const weekEnd = weekDays[6];
-  const todayIndex = weekDays.findIndex((day) => getDateOnlyKey(day.toISOString()) === getTodayKey());
-  const dateRangeLabel = `${weekDays[0].toLocaleString("en-GB", { month: "short", day: "numeric" })} - ${weekEnd.toLocaleString("en-GB", { month: "short", day: "numeric", year: "numeric" })}`;
-  const weekStartKey = getDateOnlyKey(weekStart.toISOString());
-  const columnLineStyle = (rowCount) => `--gantt-days: 7; --gantt-today-index: ${Math.max(todayIndex, 0)}; --gantt-row-count: ${Math.max(rowCount, 1)};`;
+  const windowStart = ganttScale === "month"
+    ? new Date(weekStart.getFullYear(), weekStart.getMonth(), 1)
+    : weekStart;
+  const visibleDays = ganttScale === "month"
+    ? Array.from(
+        { length: new Date(windowStart.getFullYear(), windowStart.getMonth() + 1, 0).getDate() },
+        (_, index) => addDays(windowStart, index),
+      )
+    : Array.from({ length: 7 }, (_, index) => addDays(windowStart, index));
+  const windowEnd = visibleDays[visibleDays.length - 1];
+  const todayIndex = visibleDays.findIndex((day) => getDateOnlyKey(day.toISOString()) === getTodayKey());
+  const dateRangeLabel = ganttScale === "month"
+    ? windowStart.toLocaleString("en-GB", { month: "long", year: "numeric" })
+    : `${visibleDays[0].toLocaleString("en-GB", { month: "short", day: "numeric" })} - ${windowEnd.toLocaleString("en-GB", { month: "short", day: "numeric", year: "numeric" })}`;
+  const weekStartKey = getDateOnlyKey(windowStart.toISOString());
+  const columnLineStyle = (rowCount) => `--gantt-days: ${visibleDays.length}; --gantt-today-index: ${Math.max(todayIndex, 0)}; --gantt-row-count: ${Math.max(rowCount, 1)}; --gantt-has-today:${todayIndex >= 0 ? 1 : 0};`;
   const projectColors = ["blue", "violet", "green", "amber", "red", "cyan", "pink", "indigo", "orange", "sky"];
-  const displayWeekdays = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
   const getVisibleSpan = (start, end) => {
-    if (!start || !end || end < weekStart || start > weekEnd) return null;
-    const visibleStart = start < weekStart ? weekStart : start;
-    const visibleEnd = end > weekEnd ? weekEnd : end;
-    const offsetDays = Math.max(getDateDiffInDays(weekStart, visibleStart), 0);
+    if (!start || !end || end < windowStart || start > windowEnd) return null;
+    const visibleStart = start < windowStart ? windowStart : start;
+    const visibleEnd = end > windowEnd ? windowEnd : end;
+    const offsetDays = Math.max(getDateDiffInDays(windowStart, visibleStart), 0);
     const spanDays = Math.max(getDateDiffInDays(visibleStart, visibleEnd) + 1, 1);
     return {
-      left: (offsetDays / 7) * 100,
-      width: Math.min((spanDays / 7) * 100, 100 - (offsetDays / 7) * 100),
+      left: (offsetDays / visibleDays.length) * 100,
+      width: Math.min((spanDays / visibleDays.length) * 100, 100 - (offsetDays / visibleDays.length) * 100),
     };
   };
   const projectRows = (data.projects ?? [])
@@ -3096,22 +3174,44 @@ function renderGanttChart() {
         color: projectColors[index % projectColors.length],
       };
     });
-  const taskRows = (data.tasks ?? [])
+  const baseTaskRows = (data.tasks ?? [])
     .slice()
     .sort((left, right) => String(left.title || "").localeCompare(String(right.title || ""), undefined, { numeric: true }))
     .map((task) => {
       const project = getProjectByName(task.project);
       const end = getDateAtDayStart(task.due_date);
-      const start = getDateAtDayStart(task.start_date) || getDateAtDayStart(project?.start_date) || end;
+      const durationHours = convertDurationToHours(task.estimate);
+      const durationDays = Math.max(Math.ceil(durationHours / 8), 1);
+      const estimateStart = end ? addDays(end, -(durationDays - 1)) : null;
+      const start = getDateAtDayStart(task.start_date) || estimateStart || getDateAtDayStart(project?.start_date) || end;
       return {
         id: task.id,
         tableKey: "tasks",
         key: task.title || task.id,
-        label: `Task · ${task.project || "No project"}${task.owner ? ` · ${task.owner}` : ""}`,
+        label: `Task · ${task.project || "No project"}${task.owner ? ` · ${task.owner}` : ""}${task.estimate ? ` · ${task.estimate}` : ""}`,
         start,
         end: end && start && end < start ? start : end,
+        parentTask: String(task.parent_task || "").trim(),
+        depth: 0,
       };
     });
+  const taskRowsByKey = new Map(baseTaskRows.map((task) => [task.key, task]));
+  const taskChildrenByParent = new Map();
+  baseTaskRows.forEach((task) => {
+    if (!task.parentTask || !taskRowsByKey.has(task.parentTask)) return;
+    const siblings = taskChildrenByParent.get(task.parentTask) || [];
+    siblings.push(task);
+    taskChildrenByParent.set(task.parentTask, siblings);
+  });
+  const taskRows = [];
+  const appendTaskBranch = (task, depth) => {
+    taskRows.push({ ...task, depth });
+    const children = taskChildrenByParent.get(task.key) || [];
+    children.forEach((child) => appendTaskBranch(child, depth + 1));
+  };
+  baseTaskRows
+    .filter((task) => !task.parentTask || !taskRowsByKey.has(task.parentTask))
+    .forEach((task) => appendTaskBranch(task, 0));
   const eventRows = (data.events ?? [])
     .slice()
     .sort((left, right) => String(left.start || left.date || "").localeCompare(String(right.start || right.date || "")))
@@ -3125,6 +3225,7 @@ function renderGanttChart() {
         label: `Event · ${event.project || event.type || "No project"}${event.type ? ` · ${event.type}` : ""}`,
         start,
         end: end && start && end < start ? start : end,
+        color: "orange",
       };
     });
   const renderBar = (item, type) => {
@@ -3145,18 +3246,16 @@ function renderGanttChart() {
     ...eventRows.map((item) => renderBar(item, "event")),
   ];
   const visibleRowCount = gridRows.filter(Boolean).length;
-  const sidebarSection = (title, count, iconClass, rows, overflowText) => `
-    <section class="gantt-workstream-section">
+  const sidebarSection = (title, count, rows, overflowText) => `
+    <section class="gantt-workstream-section" style="--gantt-section-row-count:${Math.max(rows.length, 1)};">
       <div class="gantt-workstream-head">
-        <span class="gantt-section-caret">⌄</span>
-        <span class="gantt-section-icon ${iconClass}"></span>
         <strong>${escapeHtml(title)}</strong>
         <em>${count}</em>
         <span class="gantt-section-more">•••</span>
       </div>
       <div class="gantt-workstream-list">
         ${rows.map((row, index) => `
-          <div class="gantt-workstream-item">
+          <div class="gantt-workstream-item${row.depth ? " is-subtask" : ""}" style="${row.depth ? `--gantt-indent:${row.depth};` : ""}">
             <span class="gantt-dot ${row.color ? `gantt-dot-${row.color}` : ""}"></span>
             <strong>${escapeHtml(row.key)}</strong>
             <span>${escapeHtml(row.label)}</span>
@@ -3173,18 +3272,8 @@ function renderGanttChart() {
         <header class="gantt-topbar">
           <div class="gantt-title-row">
             <span class="gantt-menu-icon">≡</span>
-            <div>
-              <h2>Gantt Chart</h2>
-              <p>Track tasks, events and milestones across all projects.</p>
-            </div>
+            <h2>Gantt Chart</h2>
           </div>
-          <div class="gantt-stat-strip">
-            <div><strong>${taskRows.length}</strong><span>TASKS</span></div>
-            <div><strong>${eventRows.length}</strong><span>EVENTS</span></div>
-            <div><strong>${visibleRowCount}</strong><span>VISIBLE</span></div>
-          </div>
-        </header>
-        <div class="gantt-toolbar">
           <div class="gantt-toolbar-left">
             <div class="gantt-arrow-group">
               <button type="button" data-gantt-shift="-1" aria-label="Show previous day">‹</button>
@@ -3197,32 +3286,33 @@ function renderGanttChart() {
               <input class="gantt-date-input" type="date" value="${escapeHtml(weekStartKey)}" data-gantt-date aria-label="Choose Gantt start date" />
             </label>
           </div>
-        </div>
+          <div class="gantt-stat-strip">
+            <div><strong>${taskRows.length}</strong><span>TASKS</span></div>
+            <div><strong>${eventRows.length}</strong><span>EVENTS</span></div>
+          </div>
+        </header>
         <div class="gantt-board" style="${columnLineStyle(gridRows.length)}">
           <aside class="gantt-workstreams">
             <div class="gantt-workstream-label">WORKSTREAMS</div>
-            ${sidebarSection("PROJECTS", projectRows.length, "is-project", projectRows, "")}
-            ${sidebarSection("TASKS", taskRows.length, "is-task", taskRows.slice(0, 5), taskRows.length > 5 ? `View all ${taskRows.length} tasks` : "")}
-            ${sidebarSection("EVENTS", eventRows.length, "is-event", eventRows.slice(0, 6), eventRows.length > 6 ? `View all ${eventRows.length} events` : "")}
+            ${sidebarSection("PROJECTS", projectRows.length, projectRows, "")}
+            ${sidebarSection("TASKS", taskRows.length, taskRows.slice(0, 5), taskRows.length > 5 ? `View all ${taskRows.length} tasks` : "")}
+            ${sidebarSection("EVENTS", eventRows.length, eventRows.slice(0, 6), eventRows.length > 6 ? `View all ${eventRows.length} events` : "")}
           </aside>
           <main class="gantt-timeline">
             <div class="gantt-timeline-days">
-              ${weekDays.map((day, index) => {
+              ${visibleDays.map((day) => {
                 const isToday = getDateOnlyKey(day.toISOString()) === getTodayKey();
-                const label = `${displayWeekdays[index]} ${day.getDate()} ${day.toLocaleString("en-GB", { month: "short" })}`;
+                const label = ganttScale === "month"
+                  ? `${day.getDate()} ${day.toLocaleString("en-GB", { month: "short" })}`
+                  : `${day.toLocaleString("en-GB", { weekday: "short" })} ${day.getDate()} ${day.toLocaleString("en-GB", { month: "short" })}`;
                 return `<div class="${isToday ? "is-today" : ""}">${escapeHtml(label)}</div>`;
               }).join("")}
             </div>
             <div class="gantt-canvas">
-              <div class="gantt-today-line" aria-hidden="true"></div>
+              ${todayIndex >= 0 ? `<div class="gantt-today-line" aria-hidden="true"></div>` : ""}
               ${gridRows.map((bar, index) => `<div class="gantt-canvas-row">${bar}</div>`).join("")}
             </div>
           </main>
-        </div>
-        <div class="gantt-zoom-controls" aria-hidden="true">
-          <button type="button">−</button>
-          <button type="button">Week <span>⌄</span></button>
-          <button type="button">+</button>
         </div>
       </div>
     </section>
@@ -3762,7 +3852,7 @@ function renderRecordsToolbar(table, rows, filters, ventureOptions, projectOptio
             </select>
           </label>
         </div>
-        <button id="new-record-button" class="new-record-button" type="button">+ Add</button>
+        <button id="new-record-button" class="new-record-button" type="button">+</button>
       </div>
     </div>
   `;
@@ -3906,6 +3996,7 @@ function getActiveDetailRecord() {
 
 function renderHeroPanel() {
   const detail = getActiveDetailRecord();
+  el.heroPanel.classList.toggle("hero-panel-gantt", state.activeNav === "gantt" && !detail);
   if (detail && (detail.table.key === state.activeNav || state.activeNav === "gantt")) {
     el.heroPanel.innerHTML = renderRecordDetail(detail.table, detail.record);
     el.heroPanel.querySelectorAll("[data-detail-action]").forEach((button) => {
@@ -4211,6 +4302,38 @@ function renderOwnershipRepeater(record = null, currentTableKey = "") {
   `;
 }
 
+function renderDurationField(field, record = null) {
+  const rawValue = String(record?.[field.name] ?? field.value ?? "").trim();
+  const parsedValue = parseDurationValue(rawValue);
+  const value = parsedValue?.amount ?? "";
+  const unit = parsedValue?.unit ?? "h";
+  const label = `${escapeHtml(field.label)}${field.required ? " *" : ""}`;
+  const hint = field.name === "estimate"
+    ? "Use hours or days. Saved as `h` or `d` for the Gantt chart."
+    : "Use the same unit format as estimated time.";
+
+  return `
+    <label class="form-field">
+      <span>${label}</span>
+      <div class="duration-field-row">
+        <input
+          name="${escapeHtml(field.name)}_value"
+          type="number"
+          min="0.25"
+          step="0.25"
+          inputmode="decimal"
+          value="${escapeHtml(value)}"
+          placeholder="0"
+        />
+        <select name="${escapeHtml(field.name)}_unit">
+          ${durationUnits.map((option) => `<option value="${option.value}" ${unit === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </div>
+      <small class="form-hint">${hint}</small>
+    </label>
+  `;
+}
+
 function renderField(field, record = null, currentTableKey = "") {
   const required = field.required ? "required" : "";
   const defaultValue = field.value ?? (
@@ -4243,18 +4366,44 @@ function renderField(field, record = null, currentTableKey = "") {
     return renderOwnershipRepeater(record, currentTableKey);
   }
 
+  if (currentTableKey === "tasks" && (field.name === "estimate" || field.name === "time_logged")) {
+    return renderDurationField(field, record);
+  }
+
   if (isPeopleRelation) {
-    const inputId = `people-${currentTableKey}-${field.name}`;
-    const datalistId = `${inputId}-list`;
-    const placeholderText = relation?.multiple ? "Comma separated people" : "Type or pick a person";
+    if (relation?.multiple) {
+      const selectedLabels = sortedRelationOptions
+        .filter((option) => selectedValues.includes(option.value))
+        .map((option) => option.label);
+      const summaryText = selectedLabels.length
+        ? selectedLabels.join(", ")
+        : "Select one or more";
+
+      return `
+        <label class="form-field">
+          <span>${label}</span>
+          <details class="multi-select-dropdown">
+            <summary class="multi-select-summary">${escapeHtml(summaryText)}</summary>
+            <div class="multi-select-menu">
+              ${sortedRelationOptions.map((option) => `
+                <label class="multi-select-option">
+                  <input type="checkbox" name="${escapeHtml(field.name)}" value="${escapeHtml(option.value)}" ${selectedValues.includes(option.value) ? "checked" : ""} />
+                  <span>${escapeHtml(option.label)}</span>
+                </label>
+              `).join("")}
+            </div>
+          </details>
+        </label>
+      `;
+    }
+
     return `
       <label class="form-field">
         <span>${label}</span>
-        <input name="${escapeHtml(field.name)}" type="text" ${required} value="${escapeHtml(Array.isArray(record?.[field.name]) ? record[field.name].join(", ") : fieldValue)}" placeholder="${escapeHtml(placeholderText)}" list="${escapeHtml(datalistId)}" />
-        <datalist id="${escapeHtml(datalistId)}">
-          ${sortStringsAlpha(data.people.map((person) => person.name)).map((name) => `<option value="${escapeHtml(name)}"></option>`).join("")}
-        </datalist>
-        <small class="form-hint">Type a name. If it does not exist yet, it will be created automatically when you save.</small>
+        <select name="${escapeHtml(field.name)}" ${required}>
+          <option value="">Select</option>
+          ${sortedRelationOptions.map((option) => `<option value="${escapeHtml(option.value)}" ${selectedValues.includes(option.value) ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
       </label>
     `;
   }
@@ -4673,6 +4822,16 @@ function buildRecordFromForm(table) {
       return;
     }
 
+    if (table.key === "tasks" && (field.name === "estimate" || field.name === "time_logged")) {
+      const rawAmount = String(formData.get(`${field.name}_value`) ?? "").trim();
+      const amount = Number(rawAmount);
+      const unit = String(formData.get(`${field.name}_unit`) ?? "h").trim();
+      record[field.name] = rawAmount && Number.isFinite(amount) && amount > 0
+        ? formatDurationValue(amount, unit === "d" ? "d" : "h")
+        : "";
+      return;
+    }
+
     if (table.key === "assets" && field.name === "owner_ventures") {
       const rows = Array.from(el.formElement.querySelectorAll("[data-ownership-row]"));
       record[field.name] = rows
@@ -4693,14 +4852,11 @@ function buildRecordFromForm(table) {
     );
 
     if (isPeopleRelation) {
-      const personNames = String(formData.get(field.name) ?? "")
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-
-      personNames.forEach((name) => ensurePersonRecord(name, hierarchy.venture));
-
-      record[field.name] = relation?.multiple ? personNames : (personNames[0] ?? "");
+      if (relation?.multiple) {
+        record[field.name] = formData.getAll(field.name).map((value) => String(value).trim()).filter(Boolean);
+      } else {
+        record[field.name] = String(formData.get(field.name) ?? "").trim();
+      }
       return;
     }
 
@@ -4853,10 +5009,6 @@ function bindEvents() {
     });
   }
 
-  el.modal.addEventListener("click", (event) => {
-    if (event.target === el.modal) closeForm();
-  });
-
   el.confirmModal.addEventListener("click", (event) => {
     if (event.target === el.confirmModal) closeDeleteConfirm(false);
   });
@@ -4872,38 +5024,32 @@ function bindEvents() {
         await saveRecord();
       } catch (error) {
         console.error("Failed to save record", error);
-        window.alert("Save failed. Check Supabase connection and table permissions.");
+        window.alert(`Save failed: ${error?.message ?? "Unknown error"}`);
       }
     }
   });
 
   el.heroPanel.addEventListener("click", (event) => {
-    const target = event.target instanceof Element ? event.target.closest("[data-gantt-shift],[data-gantt-today],[data-gantt-month-shift],[data-gantt-open]") : null;
+    const target = event.target instanceof Element ? event.target.closest("[data-gantt-shift],[data-gantt-today],[data-gantt-month-shift],[data-gantt-nav-shift],[data-gantt-open]") : null;
     if (!(target instanceof HTMLElement) || state.activeNav !== "gantt") return;
 
     if (target.dataset.ganttShift) {
-      const shift = Number(target.dataset.ganttShift || 0);
-      const nextStart = addDays(getGanttWeekStart(), shift);
-      setGanttWeekStart(nextStart);
-      syncGanttUrl(nextStart);
-      renderHeroPanel();
+      shiftGanttWindow(Number(target.dataset.ganttShift || 0));
       return;
     }
 
     if (target.dataset.ganttToday) {
-      const nextStart = getCenteredWeekStart(getTodayKey());
-      setGanttWeekStart(nextStart);
-      syncGanttUrl(nextStart);
-      renderHeroPanel();
+      resetGanttToday();
       return;
     }
 
     if (target.dataset.ganttMonthShift) {
-      const shift = Number(target.dataset.ganttMonthShift || 0);
-      const nextStart = addMonths(getGanttWeekStart(), shift);
-      setGanttWeekStart(nextStart);
-      syncGanttUrl(nextStart);
-      renderHeroPanel();
+      jumpGanttMonth(Number(target.dataset.ganttMonthShift || 0));
+      return;
+    }
+
+    if (target.dataset.ganttNavShift) {
+      shiftGanttWindow(Number(target.dataset.ganttNavShift || 0));
       return;
     }
 
@@ -4916,8 +5062,17 @@ function bindEvents() {
   });
 
   el.heroPanel.addEventListener("change", (event) => {
+    if (state.activeNav !== "gantt") return;
+
+    if (event.target instanceof HTMLSelectElement && event.target.dataset.ganttScale) {
+      setGanttScale(event.target.value);
+      syncGanttUrl(getGanttWeekStart());
+      renderHeroPanel();
+      return;
+    }
+
     const target = event.target instanceof HTMLInputElement ? event.target : null;
-    if (!target?.dataset.ganttDate || state.activeNav !== "gantt") return;
+    if (!target?.dataset.ganttDate) return;
 
     const nextStart = getDateAtDayStart(target.value);
     if (!nextStart) return;
