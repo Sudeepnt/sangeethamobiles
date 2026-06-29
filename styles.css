@@ -208,12 +208,19 @@ body.modal-open {
 }
 
 .force-mobile .sd-list-shell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 12px 14px 16px;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  box-sizing: border-box;
 }
 
 .force-mobile .sd-grid {
+  width: max-content;
   min-width: 920px;
 }
 
@@ -2948,6 +2955,7 @@ input[type="search"] {
   min-height: calc(100vh - 76px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
 }
 
 .sd-header {
@@ -3043,6 +3051,8 @@ input[type="search"] {
 .sd-view {
   display: none;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .sd-view.active {
