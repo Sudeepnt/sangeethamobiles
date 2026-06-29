@@ -2612,17 +2612,8 @@ function renderSidebarNav() {
       renderSidebarNav();
       if (sidebarKind === "table") {
         state.activeTable = sidebarKey;
-        renderHeroPanel();
       }
-      if (sidebarKind === "dashboard") {
-        renderHeroPanel();
-      }
-      if (sidebarKind === "gantt") {
-        renderHeroPanel();
-      }
-      if (sidebarKind === "admin") {
-        renderHeroPanel();
-      }
+      renderHeroPanel();
     });
   });
 }
@@ -3234,9 +3225,10 @@ function renderGanttChart() {
     const left = visibleSpan.left;
     const width = visibleSpan.width;
     const click = item.tableKey ? ` onclick="openGanttRecord('${escapeHtml(item.tableKey)}', '${escapeHtml(item.id)}')"` : "";
+    const cardText = `${type === "event" ? "event" : type === "task" ? "task" : "project"}: ${item.key || item.label}`;
     return `
       <button class="gantt-canvas-bar gantt-canvas-bar-${type} ${item.color ? `gantt-color-${item.color}` : ""}" type="button" style="--bar-left:${left}%; --bar-width:${width}%;"${click}>
-        <span>${type === "event" ? "◆ " : ""}${escapeHtml(item.label)}</span>
+        <span>${escapeHtml(cardText)}</span>
       </button>
     `;
   };
@@ -3997,6 +3989,7 @@ function getActiveDetailRecord() {
 function renderHeroPanel() {
   const detail = getActiveDetailRecord();
   el.heroPanel.classList.toggle("hero-panel-gantt", state.activeNav === "gantt" && !detail);
+  el.heroPanel.classList.toggle("hero-panel-sangeetha", state.activeNav === "dashboard" && !detail);
   if (detail && (detail.table.key === state.activeNav || state.activeNav === "gantt")) {
     el.heroPanel.innerHTML = renderRecordDetail(detail.table, detail.record);
     el.heroPanel.querySelectorAll("[data-detail-action]").forEach((button) => {
@@ -4030,19 +4023,8 @@ function renderHeroPanel() {
   }
 
   if (state.activeNav === "dashboard") {
-    el.heroPanel.innerHTML = `
-      <div class="hero-minimal">
-        <div class="hero-head">
-          <div class="hero-kicker">create</div>
-        </div>
-        <div id="board" class="board" aria-label="Create tables"></div>
-        ${renderDashboardAttention()}
-      </div>
-    `;
-    el.board = document.getElementById("board");
-    renderBoard();
-    el.attentionList = document.getElementById("attention-list");
-    bindDashboardAttentionEvents();
+    el.heroPanel.innerHTML = renderSangeethaDashboard();
+    bindSangeethaDashboardEvents();
     return;
   }
 
@@ -4132,6 +4114,640 @@ function renderSelectors() {
   el.taskSelect.innerHTML = data.tasks
     .map((task) => `<option value="${task.id}" ${state.taskId === task.id ? "selected" : ""}>${task.title}</option>`)
     .join("");
+}
+
+const sangeethaStages = [
+  { key: "lead", label: "Lead" },
+  { key: "under_review", label: "Under Review" },
+  { key: "shortlisted", label: "Shortlisted" },
+  { key: "approved", label: "Approved" },
+  { key: "fitout", label: "Fit-out / Setup" },
+  { key: "live", label: "Live Store" },
+  { key: "rejected", label: "Rejected", terminal: true },
+  { key: "closed", label: "Closed / Exited", terminal: true },
+];
+
+const sangeethaProperties = [
+  {
+    id: "sg-1",
+    name: "Indiranagar 100ft Road",
+    city: "Bengaluru",
+    locality: "Indiranagar",
+    lat: 12.971,
+    lon: 77.64,
+    stage: "live",
+    floor: "Ground",
+    frontage: 24,
+    size: 1200,
+    rent: 185000,
+    rsf: 154,
+    deposit: 1850000,
+    source: "Broker",
+    daysInStage: 42,
+    lease: { start: "2023-04-01", expiry: "2026-09-30", lock: 36, notice: 90, rent: 185000, rsf: 154, escDate: "2027-04-01", escPct: 8, deposit: 1850000, renewal: "due" },
+    licenses: [
+      { type: "Trade License", authority: "BBMP", issue: "2024-04-01", expiry: "2026-08-15", status: "expiring" },
+      { type: "Fire NOC", authority: "Karnataka Fire Dept", issue: "2024-01-10", expiry: "2026-07-20", status: "expiring" },
+      { type: "Shops & Estab.", authority: "Labour Dept", issue: "2023-04-01", expiry: "2026-04-01", status: "expired" },
+    ],
+    tickets: [{ cat: "Electrical", desc: "Signage light flickering", raised: "2026-06-20", status: "open", by: "Store employee" }],
+    inventory: [
+      { item: "Split AC 1.5T", qty: 3, cond: "Good", checked: "2026-05-12" },
+      { item: "Display Shelving Unit", qty: 8, cond: "Good", checked: "2026-05-12" },
+      { item: "CCTV Camera", qty: 6, cond: "Good", checked: "2026-06-01" },
+    ],
+    contacts: [
+      { name: "Mr. Rao", role: "Landlord", phone: "9876543210" },
+      { name: "A. Pinto", role: "Broker", phone: "9797979797" },
+    ],
+    history: [
+      { from: "fitout", to: "live", note: "Store opened to public", by: "R. Hegde", at: "2024-04-01" },
+      { from: "approved", to: "fitout", note: "Handover from landlord, interiors started", by: "R. Hegde", at: "2024-02-10" },
+    ],
+    media: { photos: 5, floorplan: true, documents: ["Lease Draft.pdf", "Fire NOC.pdf", "Trade License.pdf"] },
+  },
+  {
+    id: "sg-2",
+    name: "Jayanagar 4th Block",
+    city: "Bengaluru",
+    locality: "Jayanagar",
+    lat: 12.925,
+    lon: 77.583,
+    stage: "live",
+    floor: "Ground",
+    frontage: 20,
+    size: 1200,
+    rent: 142000,
+    rsf: 118,
+    deposit: 1420000,
+    source: "Referral",
+    daysInStage: 88,
+    lease: { start: "2022-11-01", expiry: "2026-07-15", lock: 24, notice: 60, rent: 142000, rsf: 118, escDate: "2026-11-01", escPct: 7, deposit: 1420000, renewal: "negotiating" },
+    licenses: [
+      { type: "Trade License", authority: "BBMP", issue: "2024-04-01", expiry: "2026-12-01", status: "valid" },
+      { type: "Fire NOC", authority: "Karnataka Fire Dept", issue: "2023-06-01", expiry: "2026-06-01", status: "expired" },
+    ],
+    tickets: [{ cat: "Plumbing", desc: "Water leakage near electrical panel, back wall", raised: "2026-06-26", status: "open", by: "Store employee" }],
+    inventory: [
+      { item: "Split AC 1.5T", qty: 2, cond: "Needs service", checked: "2026-06-01" },
+      { item: "Display Shelving Unit", qty: 6, cond: "Good", checked: "2026-06-01" },
+    ],
+    contacts: [
+      { name: "S. Nair", role: "Owner", phone: "9898989898" },
+      { name: "K. Devraj", role: "Broker", phone: "9787878787" },
+    ],
+    history: [{ from: "fitout", to: "live", note: "Store opened to public", by: "S. Nair", at: "2023-01-05" }],
+    media: { photos: 4, floorplan: true, documents: ["Lease Draft.pdf", "Fire NOC (expired).pdf"] },
+  },
+  {
+    id: "sg-3",
+    name: "Saraswathipuram",
+    city: "Mysuru",
+    locality: "Saraswathipuram",
+    lat: 12.31,
+    lon: 76.62,
+    stage: "live",
+    floor: "Ground",
+    frontage: 18,
+    size: 800,
+    rent: 72000,
+    rsf: 90,
+    deposit: 720000,
+    source: "Broker",
+    daysInStage: 30,
+    lease: { start: "2024-02-01", expiry: "2027-01-31", lock: 24, notice: 60, rent: 72000, rsf: 90, escDate: "2027-02-01", escPct: 7, deposit: 720000, renewal: "active" },
+    licenses: [{ type: "Trade License", authority: "Mysuru City Corp.", issue: "2024-02-01", expiry: "2027-02-01", status: "valid" }],
+    tickets: [],
+    inventory: [{ item: "Display Shelving Unit", qty: 4, cond: "Good", checked: "2026-04-20" }],
+    contacts: [{ name: "P. Achar", role: "Landlord", phone: "9898123456" }],
+    history: [{ from: "fitout", to: "live", note: "Store opened to public", by: "P. Achar", at: "2024-03-01" }],
+    media: { photos: 3, floorplan: true, documents: ["Trade License.pdf"] },
+  },
+  {
+    id: "sg-4",
+    name: "Hampankatta",
+    city: "Mangaluru",
+    locality: "Hampankatta",
+    lat: 12.87,
+    lon: 74.842,
+    stage: "approved",
+    floor: "Ground",
+    frontage: 22,
+    size: 1000,
+    rent: 88000,
+    rsf: 88,
+    deposit: 880000,
+    source: "Broker",
+    daysInStage: 12,
+  },
+  {
+    id: "sg-5",
+    name: "Vidyanagar",
+    city: "Hubballi",
+    locality: "Vidyanagar",
+    lat: 15.348,
+    lon: 75.135,
+    stage: "fitout",
+    floor: "Ground",
+    frontage: 19,
+    size: 800,
+    rent: 64000,
+    rsf: 80,
+    deposit: 640000,
+    source: "Referral",
+    daysInStage: 7,
+  },
+  {
+    id: "sg-6",
+    name: "College Road",
+    city: "Belagavi",
+    locality: "College Road",
+    lat: 15.862,
+    lon: 74.508,
+    stage: "lead",
+    floor: "Ground",
+    frontage: 16,
+    size: 800,
+    rent: 58000,
+    rsf: 72,
+    deposit: 580000,
+    source: "Scout",
+    daysInStage: 4,
+  },
+  {
+    id: "sg-7",
+    name: "Mandya Main Road",
+    city: "Mandya",
+    locality: "Main Road",
+    lat: 12.524,
+    lon: 76.897,
+    stage: "under_review",
+    floor: "Ground",
+    frontage: 14,
+    size: 700,
+    rent: 46000,
+    rsf: 65,
+    deposit: 460000,
+    source: "Walk-in",
+    daysInStage: 18,
+  },
+  {
+    id: "sg-8",
+    name: "MG Road",
+    city: "Tumakuru",
+    locality: "MG Road",
+    lat: 13.341,
+    lon: 77.101,
+    stage: "live",
+    floor: "Ground",
+    frontage: 17,
+    size: 800,
+    rent: 54000,
+    rsf: 68,
+    deposit: 540000,
+    source: "Broker",
+    daysInStage: 66,
+    lease: { start: "2021-06-01", expiry: "2026-08-05", lock: 24, notice: 60, rent: 54000, rsf: 68, escDate: "2026-12-01", escPct: 6, deposit: 540000, renewal: "due" },
+    licenses: [
+      { type: "Trade License", authority: "Tumakuru City Corp.", issue: "2024-06-01", expiry: "2026-09-01", status: "valid" },
+      { type: "Fire NOC", authority: "Karnataka Fire Dept", issue: "2023-06-01", expiry: "2026-06-15", status: "expired" },
+    ],
+    tickets: [{ cat: "AC", desc: "Cooling unit underperforming in display area", raised: "2026-06-10", status: "open", by: "Owner" }],
+    inventory: [{ item: "Split AC 1.5T", qty: 2, cond: "Needs service", checked: "2026-06-10" }],
+    contacts: [{ name: "R. Hegde", role: "Owner", phone: "9845098450" }],
+    history: [{ from: "fitout", to: "live", note: "Store opened to public", by: "R. Hegde", at: "2021-07-01" }],
+    media: { photos: 2, floorplan: true, documents: ["Fire NOC.pdf"] },
+  },
+  {
+    id: "sg-9",
+    name: "PB Road",
+    city: "Davanagere",
+    locality: "PB Road",
+    lat: 14.465,
+    lon: 75.921,
+    stage: "closed",
+    floor: "Ground",
+    frontage: 15,
+    size: 700,
+    rent: 50000,
+    rsf: 70,
+    deposit: 500000,
+    source: "Broker",
+    daysInStage: 120,
+  },
+];
+
+const sangeethaDashboardState = {
+  view: "pipeline",
+  layer: "all",
+  health: false,
+  stages: new Set(sangeethaStages.map((stage) => stage.key)),
+  cities: new Set([...new Set(sangeethaProperties.map((property) => property.city))]),
+  sortKey: "name",
+  sortDir: 1,
+};
+
+function sangeethaStageLabel(key) {
+  return sangeethaStages.find((stage) => stage.key === key)?.label ?? key;
+}
+
+function sangeethaGeo(lat, lon) {
+  return {
+    x: (((lon - 74) / 4.5) * 100).toFixed(1),
+    y: (((18.5 - lat) / 7) * 100).toFixed(1),
+  };
+}
+
+function sangeethaComplianceStatus(property) {
+  if (!property.licenses) return null;
+  if (property.licenses.some((license) => license.status === "expired")) return "expired";
+  if (property.licenses.some((license) => license.status === "expiring")) return "expiring";
+  return "valid";
+}
+
+function sangeethaOpenIssueCount(property) {
+  return (property.tickets ?? []).filter((ticket) => ticket.status === "open").length;
+}
+
+function sangeethaDaysUntil(dateStr) {
+  const date = new Date(dateStr);
+  const now = new Date("2026-06-29T00:00:00+05:30");
+  return Math.round((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function sangeethaLeaseChip(property) {
+  if (!property.lease) return null;
+  const days = sangeethaDaysUntil(property.lease.expiry);
+  if (days < 0) return { label: "expired", cls: "bad" };
+  if (days <= 60) return { label: `${days}d to expiry`, cls: "due" };
+  return { label: `${days}d to expiry`, cls: "ok" };
+}
+
+function sangeethaHealthCritical(property) {
+  if (property.stage !== "live") return false;
+  const compliance = sangeethaComplianceStatus(property);
+  const lease = sangeethaLeaseChip(property);
+  return compliance === "expired" || (lease && lease.cls === "bad") || sangeethaOpenIssueCount(property) > 0;
+}
+
+function sangeethaActiveProperties() {
+  let items = sangeethaProperties.filter((property) => sangeethaDashboardState.stages.has(property.stage) && sangeethaDashboardState.cities.has(property.city));
+  if (sangeethaDashboardState.layer === "pipeline") {
+    items = items.filter((property) => property.stage !== "live" && property.stage !== "closed");
+  }
+  if (sangeethaDashboardState.layer === "live") {
+    items = items.filter((property) => property.stage === "live");
+  }
+  return items;
+}
+
+function sangeethaSortedProperties() {
+  const rows = [...sangeethaProperties];
+  rows.sort((left, right) => {
+    const getValue = (property) => {
+      if (sangeethaDashboardState.sortKey === "rent_per_sqft") return property.rsf;
+      if (sangeethaDashboardState.sortKey === "size_carpet") return property.size;
+      if (sangeethaDashboardState.sortKey === "monthly_rent") return property.lease ? property.lease.rent : property.rent;
+      if (sangeethaDashboardState.sortKey === "lease_expiry") return property.lease ? property.lease.expiry : "9999";
+      if (sangeethaDashboardState.sortKey === "compliance") return sangeethaComplianceStatus(property) ?? "zzz";
+      if (sangeethaDashboardState.sortKey === "open_issues") return sangeethaOpenIssueCount(property);
+      if (sangeethaDashboardState.sortKey === "stage") return property.stage;
+      if (sangeethaDashboardState.sortKey === "city") return property.city;
+      return property.name;
+    };
+    const leftValue = getValue(left);
+    const rightValue = getValue(right);
+    if (leftValue > rightValue) return sangeethaDashboardState.sortDir;
+    if (leftValue < rightValue) return -sangeethaDashboardState.sortDir;
+    return 0;
+  });
+  return rows;
+}
+
+function sangeethaRenderPipeline() {
+  const properties = sangeethaActiveProperties();
+  return `
+    <div class="sd-toolbar">
+      <div class="sd-eyebrow">Kanban - ground scouting across Karnataka</div>
+      <div class="sd-toolbar-actions">
+        <button class="sd-button" type="button">+ Add Property</button>
+        <button class="sd-button" type="button">+ Report Issue</button>
+      </div>
+    </div>
+    <div class="sd-board">
+      ${sangeethaStages
+        .map((stage) => {
+          const items = properties.filter((property) => property.stage === stage.key);
+          return `
+            <section class="sd-column ${stage.terminal ? "sd-terminal" : ""}">
+              <div class="sd-column-head">
+                <span class="sd-column-title">${escapeHtml(stage.label)}</span>
+                <span class="sd-column-count">${items.length}</span>
+              </div>
+              <div class="sd-column-body">
+                ${items.length
+                  ? items
+                      .map((property) => {
+                        const flags = [];
+                        if (property.stage === "live") {
+                          const compliance = sangeethaComplianceStatus(property);
+                          if (compliance === "expired") flags.push('<span class="sd-flag sd-flag-crit">license expired</span>');
+                          else if (compliance === "expiring") flags.push('<span class="sd-flag">license expiring</span>');
+                          const lease = sangeethaLeaseChip(property);
+                          if (lease && lease.cls !== "ok") flags.push(`<span class="sd-flag ${lease.cls === "bad" ? "sd-flag-crit" : ""}">lease ${escapeHtml(lease.label)}</span>`);
+                          const issues = sangeethaOpenIssueCount(property);
+                          if (issues > 0) flags.push(`<span class="sd-flag sd-flag-crit">${issues} open issue${issues > 1 ? "s" : ""}</span>`);
+                        }
+                        if (property.stage === "rejected") flags.push('<span class="sd-flag">reason logged</span>');
+                        return `
+                          <article class="sd-card">
+                            <div class="sd-card-top">
+                              <div class="sd-thumb">${escapeHtml(property.name.charAt(0))}</div>
+                              <div class="sd-card-copy">
+                                <div class="sd-card-name">${escapeHtml(property.name)}</div>
+                                <div class="sd-card-loc">${escapeHtml(property.locality)}, ${escapeHtml(property.city)}</div>
+                              </div>
+                            </div>
+                            <div class="sd-card-meta">
+                              <span>₹${property.rsf}/sq.ft · ${property.size} sq.ft</span>
+                              <span>${property.daysInStage}d in stage</span>
+                            </div>
+                            ${flags.length ? `<div class="sd-flags">${flags.join("")}</div>` : ""}
+                          </article>
+                        `;
+                      })
+                      .join("")
+                  : '<div class="sd-empty">No properties in this stage.</div>'}
+              </div>
+            </section>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function sangeethaRenderMap() {
+  const active = sangeethaActiveProperties();
+  const staged = active.filter((property) => sangeethaDashboardState.stages.has(property.stage));
+  return `
+    <div class="sd-map-shell">
+      <aside class="sd-map-filters">
+        <h4>Layer</h4>
+        <div class="sd-chip-row" data-sd-chip-group="layer">
+          <button class="sd-chip ${sangeethaDashboardState.layer === "all" ? "active" : ""}" type="button" data-layer="all">All</button>
+          <button class="sd-chip ${sangeethaDashboardState.layer === "pipeline" ? "active" : ""}" type="button" data-layer="pipeline">Pipeline only</button>
+          <button class="sd-chip ${sangeethaDashboardState.layer === "live" ? "active" : ""}" type="button" data-layer="live">Live stores only</button>
+        </div>
+        <h4>Live store health overlay</h4>
+        <label class="sd-toggle">
+          <input type="checkbox" id="sd-health-toggle" ${sangeethaDashboardState.health ? "checked" : ""} />
+          show compliance / lease risk
+        </label>
+        <h4>Stage</h4>
+        <div class="sd-chip-row" data-sd-chip-group="stage">
+          ${sangeethaStages
+            .map((stage) => `<button class="sd-chip ${sangeethaDashboardState.stages.has(stage.key) ? "active" : ""}" type="button" data-stage="${escapeHtml(stage.key)}">${escapeHtml(stage.label)}</button>`)
+            .join("")}
+        </div>
+        <h4>City</h4>
+        <div class="sd-chip-row" data-sd-chip-group="city">
+          ${[...new Set(sangeethaProperties.map((property) => property.city))]
+            .map((city) => `<button class="sd-chip ${sangeethaDashboardState.cities.has(city) ? "active" : ""}" type="button" data-city="${escapeHtml(city)}">${escapeHtml(city)}</button>`)
+            .join("")}
+        </div>
+      </aside>
+      <div class="sd-map-area">
+        ${staged
+          .map((property) => {
+            const point = sangeethaGeo(property.lat, property.lon);
+            return `
+              <button class="sd-pin ${property.stage}${sangeethaDashboardState.health && sangeethaHealthCritical(property) ? " health-bad" : ""}" type="button" style="left:${point.x}%; top:${point.y}%;" data-property-id="${escapeHtml(property.id)}">
+                <span class="dot"></span>
+                <span class="stem"></span>
+              </button>
+            `;
+          })
+          .join("")}
+        <div class="sd-legend">
+          <div class="sd-legend-title">Pin = stage</div>
+          ${sangeethaStages
+            .filter((stage) => !stage.terminal)
+            .map((stage) => `<div class="sd-legend-row"><span class="sd-sw sd-stage-${escapeHtml(stage.key)}"></span>${escapeHtml(stage.label)}</div>`)
+            .join("")}
+          <div class="sd-legend-row"><span class="sd-sw sd-dashed"></span>Rejected / Closed</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function sangeethaRenderList() {
+  const rows = sangeethaSortedProperties();
+  return `
+    <div class="sd-list-shell">
+      <table class="sd-grid">
+        <thead>
+          <tr>
+            <th data-sort="name">Property</th>
+            <th data-sort="city">City</th>
+            <th data-sort="stage">Stage</th>
+            <th data-sort="rent_per_sqft">Rent/sq.ft</th>
+            <th data-sort="size_carpet">Size (sf)</th>
+            <th data-sort="lease_expiry">Lease expiry</th>
+            <th data-sort="compliance">Compliance</th>
+            <th data-sort="open_issues">Open issues</th>
+            <th data-sort="monthly_rent">Monthly rent</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map((property) => {
+              const compliance = sangeethaComplianceStatus(property);
+              const lease = sangeethaLeaseChip(property);
+              return `
+                <tr data-property-id="${escapeHtml(property.id)}">
+                  <td>${escapeHtml(property.name)}</td>
+                  <td>${escapeHtml(property.city)}</td>
+                  <td>${escapeHtml(sangeethaStageLabel(property.stage))}</td>
+                  <td>₹${property.rsf}</td>
+                  <td>${property.size}</td>
+                  <td>${property.lease ? escapeHtml(property.lease.expiry) : "—"}</td>
+                  <td>${compliance ? `<span class="sd-chip-status ${compliance === "expired" ? "bad" : compliance === "expiring" ? "due" : "ok"}">${escapeHtml(compliance)}</span>` : "—"}</td>
+                  <td>${property.stage === "live" ? sangeethaOpenIssueCount(property) : "—"}</td>
+                  <td>${property.lease ? `₹${property.lease.rent.toLocaleString("en-IN")}` : "—"}</td>
+                </tr>
+              `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function sangeethaRenderSummary() {
+  const liveProperties = sangeethaProperties.filter((property) => property.stage === "live");
+  const totalRent = liveProperties.reduce((sum, property) => sum + (property.lease ? property.lease.rent : 0), 0);
+  const expiringSoon = liveProperties.filter((property) => property.lease && sangeethaDaysUntil(property.lease.expiry) <= 90 && sangeethaDaysUntil(property.lease.expiry) >= 0).length;
+  const openRepairs = liveProperties.reduce((sum, property) => sum + sangeethaOpenIssueCount(property), 0);
+  const funnelStages = ["lead", "under_review", "shortlisted", "approved", "fitout", "live"];
+  const funnelCounts = funnelStages.map((stage) => sangeethaProperties.filter((property) => property.stage === stage).length);
+  const maxCount = Math.max(...funnelCounts, 1);
+  const cityCounts = Object.create(null);
+  sangeethaProperties.forEach((property) => {
+    cityCounts[property.city] = (cityCounts[property.city] ?? 0) + 1;
+  });
+
+  return `
+    <div class="sd-summary-grid">
+      <div class="sd-stat"><div class="sd-stat-number">${sangeethaProperties.length}</div><div class="sd-stat-label">Total properties</div></div>
+      <div class="sd-stat"><div class="sd-stat-number">${liveProperties.length}</div><div class="sd-stat-label">Live stores</div></div>
+      <div class="sd-stat"><div class="sd-stat-number">₹${(totalRent / 100000).toFixed(1)}L</div><div class="sd-stat-label">Monthly rent roll</div></div>
+      <div class="sd-stat"><div class="sd-stat-number">${expiringSoon}</div><div class="sd-stat-label">Leases expiring ≤90d</div></div>
+      <div class="sd-stat"><div class="sd-stat-number">${openRepairs}</div><div class="sd-stat-label">Open repair tickets</div></div>
+    </div>
+    <div class="sd-summary-grid-2">
+      <section class="sd-summary-panel">
+        <h3>Pipeline - conversion funnel</h3>
+        <div class="sd-funnel">
+          ${funnelStages
+            .map((stage, index) => `
+              <div class="sd-funnel-row">
+                <span class="sd-funnel-label">${escapeHtml(sangeethaStageLabel(stage))}</span>
+                <div class="sd-funnel-bar" style="width:${Math.max((funnelCounts[index] / maxCount) * 100, 4)}%;"></div>
+                <span class="sd-funnel-count">${funnelCounts[index]}</span>
+              </div>
+            `)
+            .join("")}
+        </div>
+      </section>
+      <section class="sd-summary-panel">
+        <h3>Portfolio health</h3>
+        <table class="sd-mini-table">
+          <thead>
+            <tr><th>Store</th><th>Lease</th><th>Compliance</th><th>Open issues</th></tr>
+          </thead>
+          <tbody>
+            ${liveProperties
+              .map((property) => {
+                const lease = sangeethaLeaseChip(property);
+                const compliance = sangeethaComplianceStatus(property);
+                const issues = sangeethaOpenIssueCount(property);
+                return `
+                  <tr data-property-id="${escapeHtml(property.id)}">
+                    <td>${escapeHtml(property.name)}</td>
+                    <td>${lease ? `<span class="sd-chip-status ${lease.cls}">${escapeHtml(lease.label)}</span>` : "—"}</td>
+                    <td>${compliance ? `<span class="sd-chip-status ${compliance === "expired" ? "bad" : compliance === "expiring" ? "due" : "ok"}">${escapeHtml(compliance)}</span>` : "—"}</td>
+                    <td>${issues > 0 ? `<span class="sd-chip-status due">${issues}</span>` : "0"}</td>
+                  </tr>
+                `;
+              })
+              .join("")}
+          </tbody>
+        </table>
+        <h3 class="sd-summary-subhead">City coverage</h3>
+        <table class="sd-mini-table">
+          <thead><tr><th>City</th><th>Properties</th></tr></thead>
+          <tbody>
+            ${Object.entries(cityCounts)
+              .map(([city, count]) => `<tr><td>${escapeHtml(city)}</td><td>${count}</td></tr>`)
+              .join("")}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  `;
+}
+
+function renderSangeethaDashboard() {
+  return `
+    <div class="sangeetha-dashboard">
+      <div class="sd-shell">
+        <header class="sd-header">
+          <div class="sd-brand">
+            <div class="sd-mark"></div>
+            <div>
+              <div class="sd-brand-name">SANGEETHA MOBILES</div>
+              <div class="sd-brand-sub">store lifecycle &amp; GIS · prototype</div>
+            </div>
+          </div>
+          <nav class="sd-tabs" id="sd-tabnav">
+            <button type="button" data-view="pipeline" class="${sangeethaDashboardState.view === "pipeline" ? "active" : ""}">Pipeline</button>
+            <button type="button" data-view="map" class="${sangeethaDashboardState.view === "map" ? "active" : ""}">Map</button>
+            <button type="button" data-view="list" class="${sangeethaDashboardState.view === "list" ? "active" : ""}">List</button>
+            <button type="button" data-view="dashboard" class="${sangeethaDashboardState.view === "dashboard" ? "active" : ""}">Dashboard</button>
+          </nav>
+          <div class="sd-actions">
+            <button class="sd-button sd-button-primary" type="button">+ Add Property</button>
+          </div>
+        </header>
+        <section class="sd-view ${sangeethaDashboardState.view === "pipeline" ? "active" : ""}" data-view-panel="pipeline">${sangeethaRenderPipeline()}</section>
+        <section class="sd-view ${sangeethaDashboardState.view === "map" ? "active" : ""}" data-view-panel="map">${sangeethaRenderMap()}</section>
+        <section class="sd-view ${sangeethaDashboardState.view === "list" ? "active" : ""}" data-view-panel="list">${sangeethaRenderList()}</section>
+        <section class="sd-view ${sangeethaDashboardState.view === "dashboard" ? "active" : ""}" data-view-panel="dashboard">${sangeethaRenderSummary()}</section>
+      </div>
+    </div>
+  `;
+}
+
+function bindSangeethaDashboardEvents() {
+  const nav = document.getElementById("sd-tabnav");
+  if (nav) {
+    nav.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-view]");
+      if (!button) return;
+      sangeethaDashboardState.view = button.dataset.view;
+      renderHeroPanel();
+    });
+  }
+
+  document.querySelectorAll("[data-view-panel='map'] .sd-chip[data-layer]").forEach((button) => {
+    button.addEventListener("click", () => {
+      sangeethaDashboardState.layer = button.dataset.layer || "all";
+      renderHeroPanel();
+    });
+  });
+
+  document.querySelectorAll("[data-view-panel='map'] .sd-chip[data-stage]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.stage;
+      if (!key) return;
+      if (sangeethaDashboardState.stages.has(key)) sangeethaDashboardState.stages.delete(key);
+      else sangeethaDashboardState.stages.add(key);
+      renderHeroPanel();
+    });
+  });
+
+  document.querySelectorAll("[data-view-panel='map'] .sd-chip[data-city]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const city = button.dataset.city;
+      if (!city) return;
+      if (sangeethaDashboardState.cities.has(city)) sangeethaDashboardState.cities.delete(city);
+      else sangeethaDashboardState.cities.add(city);
+      renderHeroPanel();
+    });
+  });
+
+  const healthToggle = document.getElementById("sd-health-toggle");
+  if (healthToggle) {
+    healthToggle.addEventListener("change", (event) => {
+      sangeethaDashboardState.health = Boolean(event.target.checked);
+      renderHeroPanel();
+    });
+  }
+
+  document.querySelectorAll("[data-view-panel='list'] th[data-sort]").forEach((th) => {
+    th.addEventListener("click", () => {
+      const sortKey = th.dataset.sort;
+      if (sangeethaDashboardState.sortKey === sortKey) sangeethaDashboardState.sortDir *= -1;
+      else {
+        sangeethaDashboardState.sortKey = sortKey;
+        sangeethaDashboardState.sortDir = 1;
+      }
+      renderHeroPanel();
+    });
+  });
 }
 
 function renderDashboard() {
