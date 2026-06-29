@@ -4139,6 +4139,7 @@ let sangeethaProperties = [
     name: "Indiranagar 100ft Road",
     city: "Bengaluru",
     locality: "Indiranagar",
+    photoUrl: "https://bnzkqkwxjseksvgccwid.supabase.co/storage/v1/object/public/logos/stores/indiranagar-night.jpg",
     lat: 12.971,
     lon: 77.64,
     stage: "live",
@@ -4182,6 +4183,7 @@ let sangeethaProperties = [
     name: "Jayanagar 4th Block",
     city: "Bengaluru",
     locality: "Jayanagar",
+    photoUrl: "https://bnzkqkwxjseksvgccwid.supabase.co/storage/v1/object/public/logos/stores/jayanagar-market.jpg",
     lat: 12.925,
     lon: 77.583,
     stage: "live",
@@ -4219,6 +4221,7 @@ let sangeethaProperties = [
     name: "Saraswathipuram",
     city: "Mysuru",
     locality: "Saraswathipuram",
+    photoUrl: "https://bnzkqkwxjseksvgccwid.supabase.co/storage/v1/object/public/logos/stores/mandya-storefront.webp",
     lat: 12.31,
     lon: 76.62,
     stage: "live",
@@ -4247,6 +4250,7 @@ let sangeethaProperties = [
     name: "Hampankatta",
     city: "Mangaluru",
     locality: "Hampankatta",
+    photoUrl: "https://bnzkqkwxjseksvgccwid.supabase.co/storage/v1/object/public/logos/stores/hampankatta-frontage.jpg",
     lat: 12.87,
     lon: 74.842,
     stage: "approved",
@@ -4264,6 +4268,7 @@ let sangeethaProperties = [
     name: "Vidyanagar",
     city: "Hubballi",
     locality: "Vidyanagar",
+    photoUrl: "https://bnzkqkwxjseksvgccwid.supabase.co/storage/v1/object/public/logos/stores/tumakuru-complex.webp",
     lat: 15.348,
     lon: 75.135,
     stage: "fitout",
@@ -4281,6 +4286,7 @@ let sangeethaProperties = [
     name: "College Road",
     city: "Belagavi",
     locality: "College Road",
+    photoUrl: "https://bnzkqkwxjseksvgccwid.supabase.co/storage/v1/object/public/logos/stores/jayanagar-market.jpg",
     lat: 15.862,
     lon: 74.508,
     stage: "lead",
@@ -4298,6 +4304,7 @@ let sangeethaProperties = [
     name: "Mandya Main Road",
     city: "Mandya",
     locality: "Main Road",
+    photoUrl: "https://bnzkqkwxjseksvgccwid.supabase.co/storage/v1/object/public/logos/stores/mandya-storefront.webp",
     lat: 12.524,
     lon: 76.897,
     stage: "under_review",
@@ -4315,6 +4322,7 @@ let sangeethaProperties = [
     name: "MG Road",
     city: "Tumakuru",
     locality: "MG Road",
+    photoUrl: "https://bnzkqkwxjseksvgccwid.supabase.co/storage/v1/object/public/logos/stores/tumakuru-complex.webp",
     lat: 13.341,
     lon: 77.101,
     stage: "live",
@@ -4342,6 +4350,7 @@ let sangeethaProperties = [
     name: "PB Road",
     city: "Davanagere",
     locality: "PB Road",
+    photoUrl: "https://bnzkqkwxjseksvgccwid.supabase.co/storage/v1/object/public/logos/stores/hampankatta-frontage.jpg",
     lat: 14.465,
     lon: 75.921,
     stage: "rejected",
@@ -5008,6 +5017,13 @@ function sangeethaLeaseChip(property) {
   return { label: `${days}d to expiry`, cls: "ok" };
 }
 
+function sangeethaLeaseDaysLabel(property) {
+  if (!property.lease) return "—";
+  const days = sangeethaDaysUntil(property.lease.expiry);
+  if (days < 0) return "Expired";
+  return `${days} days`;
+}
+
 function sangeethaHealthCritical(property) {
   if (property.stage !== "live") return false;
   const compliance = sangeethaComplianceStatus(property);
@@ -5055,25 +5071,7 @@ function sangeethaSortedProperties() {
 
 function sangeethaRenderPipeline() {
   const properties = sangeethaActiveProperties().filter(sangeethaPipelineFocusItems);
-  const focusChips = [
-    { key: "all", label: "All" },
-    { key: "leads", label: "Leads" },
-    { key: "live", label: "Live" },
-    { key: "rejected", label: "Rejected" },
-  ];
   return `
-    <div class="sd-toolbar">
-      <div>
-        <div class="sd-eyebrow">ground scouting</div>
-        <div class="sd-toolbar-heading">Move opportunities through review without leaving the board.</div>
-      </div>
-      <div class="sd-toolbar-actions">
-        <button class="sd-button sd-button-primary" type="button" data-sd-action="capture">+ Capture Lead</button>
-      </div>
-    </div>
-    <div class="sd-focus-row">
-      ${focusChips.map((chip) => `<button class="sd-focus-chip ${sangeethaDashboardState.pipelineFocus === chip.key ? "active" : ""}" type="button" data-pipeline-focus="${escapeHtml(chip.key)}">${escapeHtml(chip.label)}</button>`).join("")}
-    </div>
     <div class="sd-board" id="sd-board">
       ${sangeethaStages
         .map((stage) => {
@@ -5317,27 +5315,30 @@ function sangeethaRenderSummary() {
         <h3>Portfolio health</h3>
         <table class="sd-mini-table">
           <thead>
-            <tr><th>Store</th><th>Lease</th><th>Compliance</th><th>Open issues</th></tr>
+            <tr><th>Store</th><th>Lease</th><th>Compliance</th></tr>
           </thead>
           <tbody>
-            ${liveProperties
+            ${sangeethaProperties
               .map((property) => {
-                const lease = sangeethaLeaseChip(property);
+                const leaseLabel = sangeethaLeaseDaysLabel(property);
                 const compliance = sangeethaComplianceStatus(property);
-                const issues = sangeethaOpenIssueCount(property);
                 return `
                   <tr data-property-open="${escapeHtml(property.id)}" data-property-open-tab="management">
-                    <td>${escapeHtml(property.name)}</td>
-                    <td>${lease ? `<span class="sd-chip-status ${lease.cls}">${escapeHtml(lease.label)}</span>` : "—"}</td>
+                    <td>
+                      <strong>${escapeHtml(property.name)}</strong>
+                      <div class="sd-table-meta">${escapeHtml(property.city)} · ${escapeHtml(sangeethaStageLabel(property.stage))}</div>
+                    </td>
+                    <td>${escapeHtml(leaseLabel)}</td>
                     <td>${compliance ? `<span class="sd-chip-status ${compliance === "expired" ? "bad" : compliance === "expiring" ? "due" : "ok"}">${escapeHtml(compliance)}</span>` : "—"}</td>
-                    <td>${issues > 0 ? `<span class="sd-chip-status due">${issues}</span>` : "0"}</td>
                   </tr>
                 `;
               })
               .join("")}
           </tbody>
         </table>
-        <h3 class="sd-summary-subhead">City coverage</h3>
+      </section>
+      <section class="sd-summary-panel">
+        <h3>City coverage</h3>
         <table class="sd-mini-table">
           <thead><tr><th>City</th><th>Properties</th></tr></thead>
           <tbody>
@@ -5373,9 +5374,6 @@ function renderSangeethaDashboard() {
             <button type="button" data-view="map" class="${sangeethaDashboardState.view === "map" ? "active" : ""}">Map</button>
             <button type="button" data-view="list" class="${sangeethaDashboardState.view === "list" ? "active" : ""}">List</button>
           </nav>
-          <div class="sd-actions">
-            <button class="sd-button sd-button-primary" type="button" data-sd-action="capture">+ Capture Lead</button>
-          </div>
         </header>
         <section class="sd-view ${sangeethaDashboardState.view === "pipeline" ? "active" : ""}" data-view-panel="pipeline">${sangeethaRenderPipeline()}</section>
         <section class="sd-view ${sangeethaDashboardState.view === "map" ? "active" : ""}" data-view-panel="map">${sangeethaRenderMap()}</section>
