@@ -412,6 +412,10 @@ body.modal-open {
   width: 48px;
   height: auto;
   object-fit: contain;
+  background: #0d72ba;
+  border-radius: 12px;
+  padding: 6px;
+  box-sizing: border-box;
 }
 
 .sidebar-toggle {
@@ -3091,6 +3095,10 @@ input[type="search"] {
   object-fit: contain;
   display: block;
   flex: 0 0 auto;
+  background: #0d72ba;
+  border-radius: 8px;
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 .sd-brand-name {
