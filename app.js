@@ -4555,6 +4555,7 @@ function sangeethaRenderPropertyOverview(property) {
   const currentStage = sangeethaStageLabel(property.stage);
   const healthLabel = property.stage === "live" ? (sangeethaHealthCritical(property) ? "Amber" : "Healthy") : currentStage;
   const sourceTag = property.source ? `<span class="sd-chip-status">${escapeHtml(property.source)}</span>` : "—";
+  const introducedByValue = property.introducedBy ? escapeHtml(property.introducedBy) : "—";
   return `
     <div class="detail-grid sd-detail-grid">
       <div class="detail-field">
@@ -4572,6 +4573,10 @@ function sangeethaRenderPropertyOverview(property) {
       <div class="detail-field">
         <div class="detail-field-label">Source :</div>
         <div class="detail-field-value">${sourceTag}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Introduced by :</div>
+        <div class="detail-field-value">${introducedByValue}</div>
       </div>
       <div class="detail-field">
         <div class="detail-field-label">Rent :</div>
@@ -4633,6 +4638,7 @@ function sangeethaRenderPropertyReview(property) {
         <h3>Review summary</h3>
         <div class="sd-mini-grid">
           <div><span>Lead source</span><strong>${escapeHtml(property.source || "Scout")}</strong></div>
+          <div><span>Introduced by</span><strong>${escapeHtml(property.introducedBy || "—")}</strong></div>
           <div><span>Days in stage</span><strong>${escapeHtml(String(property.daysInStage ?? 0))}</strong></div>
           <div><span>Frontage</span><strong>${escapeHtml(String(property.frontage ?? "—"))} ft</strong></div>
           <div><span>Floor</span><strong>${escapeHtml(property.floor || "—")}</strong></div>
@@ -4765,6 +4771,10 @@ function renderSangeethaLeadCaptureForm() {
         </select>
       </label>
       <label class="sd-capture-field">
+        <span>Introduced by</span>
+        <input name="sangeetha_introduced_by" type="text" placeholder="Broker, contractor, company or scout name" />
+      </label>
+      <label class="sd-capture-field">
         <span>Rent / month</span>
         <input name="sangeetha_rent" type="number" inputmode="numeric" min="0" placeholder="58000" required />
       </label>
@@ -4866,6 +4876,7 @@ function saveSangeethaLeadCapture() {
   const city = String(formData.get("sangeetha_city") ?? "").trim();
   const locality = String(formData.get("sangeetha_locality") ?? "").trim();
   const source = String(formData.get("sangeetha_source") ?? "Scout").trim() || "Scout";
+  const introducedBy = String(formData.get("sangeetha_introduced_by") ?? "").trim();
   const rent = Number(formData.get("sangeetha_rent") ?? 0);
   const rsf = Number(formData.get("sangeetha_rsf") ?? 0);
   const size = Number(formData.get("sangeetha_size") ?? 0);
@@ -4893,6 +4904,7 @@ function saveSangeethaLeadCapture() {
     rsf,
     deposit: rent * 10,
     source,
+    introducedBy,
     daysInStage: 0,
     reviewState: "new",
     photoUrl,
@@ -5001,6 +5013,14 @@ function sangeethaComplianceStatus(property) {
 
 function sangeethaOpenIssueCount(property) {
   return (property.tickets ?? []).filter((ticket) => ticket.status === "open").length;
+}
+
+function sangeethaOpenIssueSummary(property) {
+  const openTickets = (property.tickets ?? []).filter((ticket) => ticket.status === "open");
+  if (!openTickets.length) return "—";
+  return openTickets
+    .map((ticket) => `${ticket.cat}: ${ticket.desc}`)
+    .join(" | ");
 }
 
 function sangeethaDaysUntil(dateStr) {
@@ -5323,7 +5343,7 @@ function sangeethaRenderList() {
                   <td>${property.size}</td>
                   <td>${property.lease ? escapeHtml(property.lease.expiry) : "—"}</td>
                   <td>${compliance ? `<span class="sd-chip-status ${compliance === "expired" ? "bad" : compliance === "expiring" ? "due" : "ok"}">${escapeHtml(compliance)}</span>` : "—"}</td>
-                  <td>${property.stage === "live" ? sangeethaOpenIssueCount(property) : "—"}</td>
+                  <td class="sd-grid-issues">${property.stage === "live" ? escapeHtml(sangeethaOpenIssueSummary(property)) : "—"}</td>
                   <td>${property.lease ? `₹${property.lease.rent.toLocaleString("en-IN")}` : "—"}</td>
                 </tr>
               `;
@@ -5439,6 +5459,7 @@ function renderSangeethaDashboard() {
         <section class="sd-view ${sangeethaDashboardState.view === "map" ? "active" : ""}" data-view-panel="map">${sangeethaRenderMap()}</section>
         <section class="sd-view ${sangeethaDashboardState.view === "list" ? "active" : ""}" data-view-panel="list">${sangeethaRenderList()}</section>
         <section class="sd-view ${sangeethaDashboardState.view === "dashboard" ? "active" : ""}" data-view-panel="dashboard">${sangeethaRenderSummary()}</section>
+        <button class="sd-fab" type="button" data-sd-action="capture" aria-label="Create new property">+ Add Property</button>
       </div>
     </div>
   `;
