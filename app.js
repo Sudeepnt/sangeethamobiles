@@ -1031,6 +1031,8 @@ const state = {
   detailRecordId: null,
   detailTreeOpen: false,
   detailHistory: [],
+  sangeethaPropertyId: null,
+  sangeethaPropertyTab: "overview",
   recordFilters: {},
   taskExpanded: {},
   ganttWeekStart: null,
@@ -4131,7 +4133,7 @@ const sangeethaStages = [
   { key: "closed", label: "Closed / Exited", terminal: true },
 ];
 
-const sangeethaProperties = [
+let sangeethaProperties = [
   {
     id: "sg-1",
     name: "Indiranagar 100ft Road",
@@ -4169,6 +4171,11 @@ const sangeethaProperties = [
       { from: "approved", to: "fitout", note: "Handover from landlord, interiors started", by: "R. Hegde", at: "2024-02-10" },
     ],
     media: { photos: 5, floorplan: true, documents: ["Lease Draft.pdf", "Fire NOC.pdf", "Trade License.pdf"] },
+    utilityBills: [
+      { name: "Electricity", period: "Jun 2026", amount: 18450, status: "Open" },
+      { name: "Water", period: "Jun 2026", amount: 2200, status: "Paid" },
+      { name: "DG maintenance", period: "Jun 2026", amount: 6400, status: "Open" },
+    ],
   },
   {
     id: "sg-2",
@@ -4202,6 +4209,10 @@ const sangeethaProperties = [
     ],
     history: [{ from: "fitout", to: "live", note: "Store opened to public", by: "S. Nair", at: "2023-01-05" }],
     media: { photos: 4, floorplan: true, documents: ["Lease Draft.pdf", "Fire NOC (expired).pdf"] },
+    utilityBills: [
+      { name: "Electricity", period: "Jun 2026", amount: 13200, status: "Open" },
+      { name: "Water", period: "Jun 2026", amount: 1650, status: "Open" },
+    ],
   },
   {
     id: "sg-3",
@@ -4226,6 +4237,10 @@ const sangeethaProperties = [
     contacts: [{ name: "P. Achar", role: "Landlord", phone: "9898123456" }],
     history: [{ from: "fitout", to: "live", note: "Store opened to public", by: "P. Achar", at: "2024-03-01" }],
     media: { photos: 3, floorplan: true, documents: ["Trade License.pdf"] },
+    utilityBills: [
+      { name: "Electricity", period: "Jun 2026", amount: 8700, status: "Open" },
+      { name: "Water", period: "Jun 2026", amount: 950, status: "Paid" },
+    ],
   },
   {
     id: "sg-4",
@@ -4329,7 +4344,7 @@ const sangeethaProperties = [
     locality: "PB Road",
     lat: 14.465,
     lon: 75.921,
-    stage: "closed",
+    stage: "rejected",
     floor: "Ground",
     frontage: 15,
     size: 700,
@@ -4338,12 +4353,15 @@ const sangeethaProperties = [
     deposit: 500000,
     source: "Broker",
     daysInStage: 120,
+    rejectionReason: "Visibility was weak and landlord would not accept the brand frontage spec.",
+    history: [{ from: "under_review", to: "rejected", note: "Rejected after site visit", by: "R. Hegde", at: "2026-06-12" }],
   },
 ];
 
 const sangeethaDashboardState = {
   view: "dashboard",
   layer: "all",
+  pipelineFocus: "all",
   health: false,
   mapFiltersOpen: true,
   stages: new Set(sangeethaStages.map((stage) => stage.key)),
@@ -4352,8 +4370,593 @@ const sangeethaDashboardState = {
   sortDir: 1,
 };
 
+const sangeethaPipelineStages = ["lead", "under_review", "shortlisted", "approved", "fitout", "live"];
+
 function sangeethaStageLabel(key) {
   return sangeethaStages.find((stage) => stage.key === key)?.label ?? key;
+}
+
+function sangeethaPropertyById(propertyId) {
+  return sangeethaProperties.find((property) => property.id === propertyId) ?? null;
+}
+
+function sangeethaStageIndex(stageKey) {
+  return sangeethaPipelineStages.indexOf(stageKey);
+}
+
+function sangeethaPipelineFocusLabel(key) {
+  return {
+    all: "All opportunities",
+    leads: "Lead capture",
+    live: "Live stores",
+    rejected: "Rejected",
+  }[key] ?? "All opportunities";
+}
+
+function sangeethaPropertyMoveNote(previousStage, nextStage) {
+  return `Moved from ${sangeethaStageLabel(previousStage)} to ${sangeethaStageLabel(nextStage)}`;
+}
+
+function sangeethaRecordPropertyHistory(property, previousStage, nextStage, note, by = "Scout") {
+  property.history = Array.isArray(property.history) ? property.history : [];
+  property.history.unshift({
+    from: previousStage,
+    to: nextStage,
+    note,
+    by,
+    at: "2026-06-29",
+  });
+  property.daysInStage = 0;
+}
+
+function sangeethaUpdatePropertyStage(propertyId, nextStage, { reason = "", by = "Scout" } = {}) {
+  const property = sangeethaPropertyById(propertyId);
+  if (!property || property.stage === nextStage) return false;
+
+  const previousStage = property.stage;
+  property.stage = nextStage;
+
+  if (nextStage === "rejected") {
+    property.rejectionReason = reason || property.rejectionReason || "Rejected during review";
+  }
+
+  if (previousStage === "rejected" && nextStage !== "rejected") {
+    property.rejectionReason = "";
+  }
+
+  if (nextStage === "live") {
+    property.reviewState = "approved";
+  }
+
+  sangeethaRecordPropertyHistory(property, previousStage, nextStage, reason || sangeethaPropertyMoveNote(previousStage, nextStage), by);
+
+  if (state.sangeethaPropertyId === propertyId) {
+    state.sangeethaPropertyTab = nextStage === "live" ? "management" : "review";
+  }
+
+  renderHeroPanel();
+  return true;
+}
+
+function sangeethaOpenProperty(propertyId, tab = "overview") {
+  if (!propertyId) return;
+  state.sangeethaPropertyId = propertyId;
+  state.sangeethaPropertyTab = tab;
+  state.activeNav = "dashboard";
+  renderSidebarNav();
+  renderHeroPanel();
+}
+
+function sangeethaCloseProperty() {
+  state.sangeethaPropertyId = null;
+  state.sangeethaPropertyTab = "overview";
+  renderHeroPanel();
+}
+
+function sangeethaMapFromPoint(x, y) {
+  const normalizedX = Math.min(Math.max(x, 0), 100);
+  const normalizedY = Math.min(Math.max(y, 0), 100);
+  return {
+    lon: 74 + (normalizedX / 100) * 4.5,
+    lat: 18.5 - (normalizedY / 100) * 7,
+  };
+}
+
+function sangeethaPointFromGeo(lat, lon) {
+  return {
+    x: (((lon - 74) / 4.5) * 100).toFixed(1),
+    y: (((18.5 - lat) / 7) * 100).toFixed(1),
+  };
+}
+
+function sangeethaPropertyPreview(property) {
+  const photoUrl = property.photoUrl || property.photo || property.media?.photoUrl || "";
+  const initials = property.name
+    ? property.name.split(/\s+/).map((part) => part[0] ?? "").join("").slice(0, 2).toUpperCase()
+    : "SM";
+  if (photoUrl) {
+    return `<img class="sd-property-photo" src="${escapeHtml(photoUrl)}" alt="${escapeHtml(property.name)} photo" />`;
+  }
+  return `<div class="sd-property-initials">${escapeHtml(initials || "SM")}</div>`;
+}
+
+function sangeethaPipelineFocusItems(property) {
+  if (sangeethaDashboardState.pipelineFocus === "all") return true;
+  if (sangeethaDashboardState.pipelineFocus === "leads") return property.stage === "lead";
+  if (sangeethaDashboardState.pipelineFocus === "live") return property.stage === "live";
+  if (sangeethaDashboardState.pipelineFocus === "rejected") return property.stage === "rejected";
+  return true;
+}
+
+function sangeethaDetailTabs() {
+  const tabs = [
+    { key: "overview", label: "Overview" },
+    { key: "review", label: "Review" },
+    { key: "management", label: "Management" },
+    { key: "media", label: "Media" },
+  ];
+
+  return `
+    <div class="sd-detail-tabs" role="tablist" aria-label="Property tabs">
+      ${tabs.map((tab) => `<button type="button" class="${state.sangeethaPropertyTab === tab.key ? "active" : ""}" data-sangeetha-tab="${tab.key}" role="tab" aria-selected="${state.sangeethaPropertyTab === tab.key ? "true" : "false"}">${escapeHtml(tab.label)}</button>`).join("")}
+    </div>
+  `;
+}
+
+function sangeethaRenderPropertyActions(property) {
+  const stageTargets = sangeethaPipelineStages
+    .filter((stage) => stage !== property.stage)
+    .map((stage) => `<button class="sd-stage-button" type="button" data-stage-target="${escapeHtml(stage)}" data-stage-property="${escapeHtml(property.id)}">${escapeHtml(sangeethaStageLabel(stage))}</button>`)
+    .join("");
+
+  return `
+    <div class="sd-stage-rail">
+      <div class="sd-stage-rail-label">Stage actions</div>
+      <div class="sd-stage-rail-buttons">
+        ${stageTargets}
+        ${property.stage !== "rejected" ? `<button class="sd-stage-button sd-stage-button-warning" type="button" data-stage-target="rejected" data-stage-property="${escapeHtml(property.id)}">Reject with reason</button>` : ""}
+      </div>
+      <div class="sd-stage-rail-hint">${escapeHtml(sangeethaStageLabel(property.stage))}</div>
+    </div>
+  `;
+}
+
+function sangeethaRenderPropertyOverview(property) {
+  const lease = property.lease;
+  const compliance = sangeethaComplianceStatus(property);
+  const currentStage = sangeethaStageLabel(property.stage);
+  const healthLabel = property.stage === "live" ? (sangeethaHealthCritical(property) ? "Amber" : "Healthy") : currentStage;
+  const sourceTag = property.source ? `<span class="sd-chip-status">${escapeHtml(property.source)}</span>` : "—";
+  return `
+    <div class="detail-grid sd-detail-grid">
+      <div class="detail-field">
+        <div class="detail-field-label">Stage :</div>
+        <div class="detail-field-value">${escapeHtml(currentStage)}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">City :</div>
+        <div class="detail-field-value">${escapeHtml(property.city)}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Locality :</div>
+        <div class="detail-field-value">${escapeHtml(property.locality)}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Source :</div>
+        <div class="detail-field-value">${sourceTag}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Rent :</div>
+        <div class="detail-field-value">₹${property.rent.toLocaleString("en-IN")} / month</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Rent / sq.ft :</div>
+        <div class="detail-field-value">₹${property.rsf}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Size :</div>
+        <div class="detail-field-value">${property.size} sq.ft</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Health :</div>
+        <div class="detail-field-value">${escapeHtml(healthLabel)}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Lease expiry :</div>
+        <div class="detail-field-value">${lease ? escapeHtml(lease.expiry) : "—"}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Compliance :</div>
+        <div class="detail-field-value">${compliance ? escapeHtml(compliance) : "—"}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Frontage :</div>
+        <div class="detail-field-value">${escapeHtml(String(property.frontage ?? "—"))} ft</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Pin :</div>
+        <div class="detail-field-value">${property.lat != null && property.lon != null ? `${property.lat.toFixed(3)}, ${property.lon.toFixed(3)}` : "—"}</div>
+      </div>
+    </div>
+  `;
+}
+
+function sangeethaRenderPropertyReview(property) {
+  const events = Array.isArray(property.history) ? property.history : [];
+  const rejectionReason = property.rejectionReason || (property.stage === "rejected" ? "Reason logged on rejection." : "");
+  return `
+    <div class="sd-detail-panel-grid">
+      <section class="sd-detail-panel">
+        <h3>Decision trail</h3>
+        <div class="sd-trail">
+          ${events.length ? events.map((entry) => `
+            <article class="sd-trail-item">
+              <div class="sd-trail-top">
+                <strong>${escapeHtml(sangeethaStageLabel(entry.from))} → ${escapeHtml(sangeethaStageLabel(entry.to))}</strong>
+                <span>${escapeHtml(entry.at || "")}</span>
+              </div>
+              <div class="sd-trail-note">${escapeHtml(entry.note || "")}</div>
+              <div class="sd-trail-meta">${escapeHtml(entry.by || "Scout")}</div>
+            </article>
+          `).join("") : '<div class="sd-empty">No stage changes yet.</div>'}
+        </div>
+      </section>
+      <section class="sd-detail-panel">
+        <h3>Review summary</h3>
+        <div class="sd-mini-grid">
+          <div><span>Lead source</span><strong>${escapeHtml(property.source || "Scout")}</strong></div>
+          <div><span>Days in stage</span><strong>${escapeHtml(String(property.daysInStage ?? 0))}</strong></div>
+          <div><span>Frontage</span><strong>${escapeHtml(String(property.frontage ?? "—"))} ft</strong></div>
+          <div><span>Floor</span><strong>${escapeHtml(property.floor || "—")}</strong></div>
+        </div>
+        <div class="sd-review-reason ${rejectionReason ? "active" : ""}">
+          <span>Rejected reason</span>
+          <strong>${escapeHtml(rejectionReason || "None recorded yet")}</strong>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function sangeethaRenderPropertyManagement(property) {
+  const lease = property.lease;
+  const licenses = Array.isArray(property.licenses) ? property.licenses : [];
+  const tickets = Array.isArray(property.tickets) ? property.tickets : [];
+  const utilityBills = Array.isArray(property.utilityBills) ? property.utilityBills : [];
+  return `
+    <div class="sd-detail-panel-grid">
+      <section class="sd-detail-panel">
+        <h3>Lease</h3>
+        ${lease ? `
+          <div class="sd-management-list">
+            <div><span>Expiry</span><strong>${escapeHtml(lease.expiry)}</strong></div>
+            <div><span>Rent</span><strong>₹${lease.rent.toLocaleString("en-IN")}</strong></div>
+            <div><span>Escalation</span><strong>${escapeHtml(String(lease.escPct ?? ""))}% ${escapeHtml(lease.escDate ? `on ${lease.escDate}` : "")}</strong></div>
+            <div><span>Renewal</span><strong>${escapeHtml(lease.renewal || "—")}</strong></div>
+          </div>
+        ` : '<div class="sd-empty">No lease linked yet.</div>'}
+      </section>
+      <section class="sd-detail-panel">
+        <h3>Compliance</h3>
+        <div class="sd-management-stack">
+          ${licenses.length ? licenses.map((license) => `
+            <div class="sd-management-card">
+              <div class="sd-management-card-top">
+                <strong>${escapeHtml(license.type)}</strong>
+                <span class="sd-chip-status ${license.status === "expired" ? "bad" : license.status === "expiring" ? "due" : "ok"}">${escapeHtml(license.status)}</span>
+              </div>
+              <div class="sd-management-card-meta">${escapeHtml(license.authority)} · expires ${escapeHtml(license.expiry)}</div>
+            </div>
+          `).join("") : '<div class="sd-empty">No compliance records logged.</div>'}
+        </div>
+      </section>
+      <section class="sd-detail-panel">
+        <h3>Open tickets</h3>
+        <div class="sd-management-stack">
+          ${tickets.length ? tickets.map((ticket) => `
+            <div class="sd-management-card">
+              <div class="sd-management-card-top">
+                <strong>${escapeHtml(ticket.cat)}</strong>
+                <span class="sd-chip-status due">${escapeHtml(ticket.status)}</span>
+              </div>
+              <div class="sd-management-card-meta">${escapeHtml(ticket.desc)} · raised ${escapeHtml(ticket.raised)}</div>
+            </div>
+          `).join("") : '<div class="sd-empty">No open maintenance tickets.</div>'}
+        </div>
+      </section>
+      <section class="sd-detail-panel">
+        <h3>Utility bills</h3>
+        <div class="sd-management-stack">
+          ${utilityBills.length ? utilityBills.map((bill) => `
+            <div class="sd-management-card">
+              <div class="sd-management-card-top">
+                <strong>${escapeHtml(bill.name)}</strong>
+                <span class="sd-chip-status ${String(bill.status).toLowerCase() === "paid" ? "ok" : "due"}">${escapeHtml(bill.status)}</span>
+              </div>
+              <div class="sd-management-card-meta">${escapeHtml(bill.period)} · ₹${Number(bill.amount).toLocaleString("en-IN")}</div>
+            </div>
+          `).join("") : '<div class="sd-empty">No utility bills attached yet.</div>'}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function sangeethaRenderPropertyMedia(property) {
+  const media = property.media ?? {};
+  const docs = Array.isArray(media.documents) ? media.documents : [];
+  return `
+    <div class="sd-detail-panel-grid">
+      <section class="sd-detail-panel">
+        <h3>Photos</h3>
+        <div class="sd-media-preview">
+          ${sangeethaPropertyPreview(property)}
+        </div>
+        <div class="sd-mini-grid">
+          <div><span>Photo count</span><strong>${escapeHtml(String(media.photos ?? 0))}</strong></div>
+          <div><span>Floorplan</span><strong>${media.floorplan ? "Yes" : "No"}</strong></div>
+        </div>
+      </section>
+      <section class="sd-detail-panel">
+        <h3>Files</h3>
+        <div class="sd-management-stack">
+          ${docs.length ? docs.map((document) => `
+            <div class="sd-management-card">
+              <strong>${escapeHtml(document)}</strong>
+              <div class="sd-management-card-meta">Available in the field folder</div>
+            </div>
+          `).join("") : '<div class="sd-empty">No documents uploaded.</div>'}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderSangeethaLeadCaptureForm() {
+  return `
+    <div class="sd-capture-grid">
+      <label class="sd-capture-field">
+        <span>Property name</span>
+        <input name="sangeetha_name" type="text" placeholder="College Road" required />
+      </label>
+      <label class="sd-capture-field">
+        <span>City</span>
+        <input name="sangeetha_city" type="text" placeholder="Belagavi" required />
+      </label>
+      <label class="sd-capture-field">
+        <span>Locality</span>
+        <input name="sangeetha_locality" type="text" placeholder="Main road / market area" required />
+      </label>
+      <label class="sd-capture-field">
+        <span>Source</span>
+        <select name="sangeetha_source">
+          <option>Scout</option>
+          <option>Broker</option>
+          <option>Walk-in</option>
+          <option>Referral</option>
+        </select>
+      </label>
+      <label class="sd-capture-field">
+        <span>Rent / month</span>
+        <input name="sangeetha_rent" type="number" inputmode="numeric" min="0" placeholder="58000" required />
+      </label>
+      <label class="sd-capture-field">
+        <span>Rent / sq.ft</span>
+        <input name="sangeetha_rsf" type="number" inputmode="numeric" min="0" placeholder="72" required />
+      </label>
+      <label class="sd-capture-field">
+        <span>Size (sq.ft)</span>
+        <input name="sangeetha_size" type="number" inputmode="numeric" min="0" placeholder="800" required />
+      </label>
+      <label class="sd-capture-field">
+        <span>Frontage (ft)</span>
+        <input name="sangeetha_frontage" type="number" inputmode="numeric" min="0" placeholder="16" required />
+      </label>
+    </div>
+    <div class="sd-capture-map-block">
+      <div class="sd-capture-map-head">
+        <strong>Pin drop</strong>
+        <span>Tap the box, then fine-tune with the sliders.</span>
+      </div>
+      <div class="sd-capture-map" data-capture-map>
+        <div class="sd-capture-map-grid"></div>
+        <div class="sd-capture-map-pin" data-capture-pin style="left:50%; top:50%;"></div>
+      </div>
+      <div class="sd-capture-coordinates">
+        <label class="sd-capture-field">
+          <span>Pin x</span>
+          <input name="sangeetha_pin_x" type="range" min="0" max="100" value="50" />
+        </label>
+        <label class="sd-capture-field">
+          <span>Pin y</span>
+          <input name="sangeetha_pin_y" type="range" min="0" max="100" value="50" />
+        </label>
+      </div>
+    </div>
+    <label class="sd-capture-field sd-capture-photo">
+      <span>Photo</span>
+      <input name="sangeetha_photo" type="file" accept="image/*" />
+      <div class="sd-photo-preview" data-photo-preview>Drop a photo from the field.</div>
+    </label>
+  `;
+}
+
+function openSangeethaLeadCapture() {
+  state.modalEntity = "sangeetha-lead";
+  state.modalMode = "create";
+  state.editingRecordId = null;
+  state.editingUserId = null;
+  el.modalTitle.textContent = "Capture lead";
+  el.modalSubtitle.textContent = "Pin drop and photo";
+  el.form.innerHTML = renderSangeethaLeadCaptureForm();
+  el.saveButton.textContent = "Create lead";
+  el.modal.classList.add("open");
+  syncBodyModalState();
+  bindSangeethaCaptureForm();
+}
+
+function bindSangeethaCaptureForm() {
+  const pinX = el.formElement.querySelector('input[name="sangeetha_pin_x"]');
+  const pinY = el.formElement.querySelector('input[name="sangeetha_pin_y"]');
+  const map = el.formElement.querySelector("[data-capture-map]");
+  const pin = el.formElement.querySelector("[data-capture-pin]");
+  const photoInput = el.formElement.querySelector('input[name="sangeetha_photo"]');
+  const photoPreview = el.formElement.querySelector("[data-photo-preview]");
+
+  const syncPin = () => {
+    if (!(pin instanceof HTMLElement)) return;
+    const x = Number(pinX instanceof HTMLInputElement ? pinX.value : 50);
+    const y = Number(pinY instanceof HTMLInputElement ? pinY.value : 50);
+    pin.style.left = `${x}%`;
+    pin.style.top = `${y}%`;
+  };
+
+  pinX?.addEventListener("input", syncPin);
+  pinY?.addEventListener("input", syncPin);
+  map?.addEventListener("click", (event) => {
+    const rect = map.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+    if (pinX instanceof HTMLInputElement) pinX.value = String(Math.round(x));
+    if (pinY instanceof HTMLInputElement) pinY.value = String(Math.round(y));
+    syncPin();
+  });
+
+  photoInput?.addEventListener("change", () => {
+    const file = photoInput.files?.[0];
+    if (!file || !(photoPreview instanceof HTMLElement)) {
+      if (photoPreview instanceof HTMLElement) photoPreview.textContent = "Drop a photo from the field.";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result || "");
+      photoPreview.innerHTML = `<img src="${escapeHtml(url)}" alt="Lead photo preview" />`;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  syncPin();
+}
+
+function saveSangeethaLeadCapture() {
+  const formData = new FormData(el.formElement);
+  const name = String(formData.get("sangeetha_name") ?? "").trim();
+  const city = String(formData.get("sangeetha_city") ?? "").trim();
+  const locality = String(formData.get("sangeetha_locality") ?? "").trim();
+  const source = String(formData.get("sangeetha_source") ?? "Scout").trim() || "Scout";
+  const rent = Number(formData.get("sangeetha_rent") ?? 0);
+  const rsf = Number(formData.get("sangeetha_rsf") ?? 0);
+  const size = Number(formData.get("sangeetha_size") ?? 0);
+  const frontage = Number(formData.get("sangeetha_frontage") ?? 0);
+  const pinX = Number(formData.get("sangeetha_pin_x") ?? 50);
+  const pinY = Number(formData.get("sangeetha_pin_y") ?? 50);
+  const file = el.formElement.querySelector('input[name="sangeetha_photo"]')?.files?.[0] ?? null;
+  const photoUrl = file ? URL.createObjectURL(file) : "";
+  const geo = sangeethaMapFromPoint(pinX, pinY);
+
+  const nextProperty = {
+    id: `sg-${Date.now()}`,
+    name,
+    city,
+    locality,
+    lat: Number(geo.lat.toFixed(3)),
+    lon: Number(geo.lon.toFixed(3)),
+    stage: "lead",
+    floor: "Ground",
+    frontage,
+    size,
+    rent,
+    rsf,
+    deposit: rent * 10,
+    source,
+    daysInStage: 0,
+    reviewState: "new",
+    photoUrl,
+    media: {
+      photos: photoUrl ? 1 : 0,
+      floorplan: false,
+      documents: [],
+      photoUrl,
+    },
+    history: [
+      { from: "new", to: "lead", note: "Captured on mobile with pin drop and photo", by: "Scout", at: "2026-06-29" },
+    ],
+  };
+
+  sangeethaProperties.unshift(nextProperty);
+  state.sangeethaPropertyId = nextProperty.id;
+  state.sangeethaPropertyTab = "overview";
+  closeForm();
+  renderAll();
+}
+
+function renderSangeethaPropertyDetail() {
+  const property = sangeethaPropertyById(state.sangeethaPropertyId);
+  if (!property) {
+    state.sangeethaPropertyId = null;
+    state.sangeethaPropertyTab = "overview";
+    return renderSangeethaDashboard();
+  }
+
+  const tab = state.sangeethaPropertyTab || "overview";
+
+  return `
+    <div class="sangeetha-dashboard">
+      <div class="sd-shell">
+        <header class="sd-header">
+          <div class="sd-brand">
+            <img class="sd-mark" src="${LOGO_URL}" alt="Sangeetha Mobiles logo" />
+            <div>
+              <div class="sd-brand-name">SANGEETHA MOBILES</div>
+              <div class="sd-brand-sub">store lifecycle &amp; GIS · prototype</div>
+            </div>
+          </div>
+          <nav class="sd-tabs" id="sd-tabnav">
+            <button type="button" data-view="dashboard" class="${sangeethaDashboardState.view === "dashboard" ? "active" : ""}">Dashboard</button>
+            <button type="button" data-view="pipeline" class="${sangeethaDashboardState.view === "pipeline" ? "active" : ""}">Pipeline</button>
+            <button type="button" data-view="map" class="${sangeethaDashboardState.view === "map" ? "active" : ""}">Map</button>
+            <button type="button" data-view="list" class="${sangeethaDashboardState.view === "list" ? "active" : ""}">List</button>
+          </nav>
+          <div class="sd-actions">
+            <button class="sd-button sd-button-primary" type="button" data-sd-action="capture">+ Capture Lead</button>
+          </div>
+        </header>
+        <section class="sd-view active" data-view-panel="detail">
+          <div class="sd-property-detail">
+            <div class="sd-property-detail-head">
+              <div class="detail-header-main">
+                <button class="detail-back-button" type="button" data-sangeetha-close-detail aria-label="Back to board">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m15 18-6-6 6-6"></path>
+                  </svg>
+                </button>
+                <div class="detail-title-block">
+                  <span class="detail-title-icon tone-3" aria-hidden="true">${escapeHtml(property.name.charAt(0))}</span>
+                  <div class="detail-title-copy">
+                    <div class="detail-eyebrow">${escapeHtml(property.city)} · ${escapeHtml(sangeethaStageLabel(property.stage))}</div>
+                    <h2>${escapeHtml(property.name)}</h2>
+                  </div>
+                </div>
+              </div>
+              <div class="detail-actions">
+                <button class="record-action-button" type="button" data-sangeetha-action="capture">Capture lead</button>
+                <button class="record-action-button" type="button" data-sangeetha-action="close">Close</button>
+              </div>
+            </div>
+            ${sangeethaDetailTabs()}
+            ${sangeethaRenderPropertyActions(property)}
+            <section class="sd-property-content">
+              ${tab === "review" ? sangeethaRenderPropertyReview(property)
+                : tab === "management" ? sangeethaRenderPropertyManagement(property)
+                  : tab === "media" ? sangeethaRenderPropertyMedia(property)
+                    : sangeethaRenderPropertyOverview(property)}
+            </section>
+          </div>
+        </section>
+      </div>
+    </div>
+  `;
 }
 
 function sangeethaGeo(lat, lon) {
@@ -4396,7 +4999,11 @@ function sangeethaHealthCritical(property) {
 }
 
 function sangeethaActiveProperties() {
-  let items = sangeethaProperties.filter((property) => sangeethaDashboardState.stages.has(property.stage) && sangeethaDashboardState.cities.has(property.city));
+  return sangeethaProperties.filter((property) => sangeethaDashboardState.stages.has(property.stage) && sangeethaDashboardState.cities.has(property.city));
+}
+
+function sangeethaVisibleMapProperties() {
+  let items = sangeethaActiveProperties();
   if (sangeethaDashboardState.layer === "pipeline") {
     items = items.filter((property) => property.stage !== "live" && property.stage !== "closed");
   }
@@ -4430,21 +5037,32 @@ function sangeethaSortedProperties() {
 }
 
 function sangeethaRenderPipeline() {
-  const properties = sangeethaActiveProperties();
+  const properties = sangeethaActiveProperties().filter(sangeethaPipelineFocusItems);
+  const focusChips = [
+    { key: "all", label: "All" },
+    { key: "leads", label: "Leads" },
+    { key: "live", label: "Live" },
+    { key: "rejected", label: "Rejected" },
+  ];
   return `
     <div class="sd-toolbar">
-      <div class="sd-eyebrow">ground scouting</div>
-      <div class="sd-toolbar-actions">
-        <button class="sd-button" type="button">+ Add Property</button>
-        <button class="sd-button" type="button">+ Report Issue</button>
+      <div>
+        <div class="sd-eyebrow">ground scouting</div>
+        <div class="sd-toolbar-heading">Move opportunities through review without leaving the board.</div>
       </div>
+      <div class="sd-toolbar-actions">
+        <button class="sd-button sd-button-primary" type="button" data-sd-action="capture">+ Capture Lead</button>
+      </div>
+    </div>
+    <div class="sd-focus-row">
+      ${focusChips.map((chip) => `<button class="sd-focus-chip ${sangeethaDashboardState.pipelineFocus === chip.key ? "active" : ""}" type="button" data-pipeline-focus="${escapeHtml(chip.key)}">${escapeHtml(chip.label)}</button>`).join("")}
     </div>
     <div class="sd-board" id="sd-board">
       ${sangeethaStages
         .map((stage) => {
           const items = properties.filter((property) => property.stage === stage.key);
           return `
-            <section class="sd-column ${stage.terminal ? "sd-terminal" : ""}">
+            <section class="sd-column ${stage.terminal ? "sd-terminal" : ""}" data-stage-drop="${escapeHtml(stage.key)}">
               <div class="sd-column-head">
                 <span class="sd-column-title">${escapeHtml(stage.label)}</span>
                 <span class="sd-column-count">${items.length}</span>
@@ -4454,6 +5072,7 @@ function sangeethaRenderPipeline() {
                   ? items
                       .map((property) => {
                         const flags = [];
+                        const nextStage = sangeethaPipelineStages[sangeethaStageIndex(property.stage) + 1] ?? null;
                         if (property.stage === "live") {
                           const compliance = sangeethaComplianceStatus(property);
                           if (compliance === "expired") flags.push('<span class="sd-flag sd-flag-crit">license expired</span>');
@@ -4465,9 +5084,9 @@ function sangeethaRenderPipeline() {
                         }
                         if (property.stage === "rejected") flags.push('<span class="sd-flag">reason logged</span>');
                         return `
-                          <article class="sd-card">
+                          <article class="sd-card" draggable="true" data-property-id="${escapeHtml(property.id)}" data-property-open="${escapeHtml(property.id)}" data-property-stage="${escapeHtml(property.stage)}">
                             <div class="sd-card-top">
-                              <div class="sd-thumb">${escapeHtml(property.name.charAt(0))}</div>
+                              <div class="sd-thumb">${sangeethaPropertyPreview(property)}</div>
                               <div class="sd-card-copy">
                                 <div class="sd-card-name">${escapeHtml(property.name)}</div>
                                 <div class="sd-card-loc">${escapeHtml(property.locality)}, ${escapeHtml(property.city)}</div>
@@ -4478,6 +5097,11 @@ function sangeethaRenderPipeline() {
                               <span>${property.daysInStage}d in stage</span>
                             </div>
                             ${flags.length ? `<div class="sd-flags">${flags.join("")}</div>` : ""}
+                            <div class="sd-card-actions">
+                              <button class="sd-card-button" type="button" data-property-open="${escapeHtml(property.id)}">Open</button>
+                              ${nextStage ? `<button class="sd-card-button" type="button" data-stage-target="${escapeHtml(nextStage)}" data-stage-property="${escapeHtml(property.id)}">Move to ${escapeHtml(sangeethaStageLabel(nextStage))}</button>` : ""}
+                              ${property.stage === "live" ? '<button class="sd-card-button" type="button" data-property-open-tab="management" data-property-open="' + escapeHtml(property.id) + '">Management</button>' : ""}
+                            </div>
                           </article>
                         `;
                       })
@@ -4493,7 +5117,7 @@ function sangeethaRenderPipeline() {
 }
 
 function sangeethaRenderMap() {
-  const active = sangeethaActiveProperties();
+  const active = sangeethaVisibleMapProperties();
   const staged = active.filter((property) => sangeethaDashboardState.stages.has(property.stage));
   return `
     <div class="sd-map-shell">
@@ -4535,7 +5159,7 @@ function sangeethaRenderMap() {
           .map((property) => {
             const point = sangeethaGeo(property.lat, property.lon);
             return `
-              <button class="sd-pin ${property.stage}${sangeethaDashboardState.health && sangeethaHealthCritical(property) ? " health-bad" : ""}" type="button" style="left:${point.x}%; top:${point.y}%;" data-property-id="${escapeHtml(property.id)}">
+              <button class="sd-pin ${property.stage}${sangeethaDashboardState.health && sangeethaHealthCritical(property) ? " health-bad" : ""}" type="button" style="left:${point.x}%; top:${point.y}%;" data-property-open="${escapeHtml(property.id)}">
                 <span class="dot"></span>
                 <span class="stem"></span>
               </button>
@@ -4579,7 +5203,7 @@ function sangeethaRenderList() {
               const compliance = sangeethaComplianceStatus(property);
               const lease = sangeethaLeaseChip(property);
               return `
-                <tr data-property-id="${escapeHtml(property.id)}">
+                <tr data-property-open="${escapeHtml(property.id)}">
                   <td>${escapeHtml(property.name)}</td>
                   <td>${escapeHtml(property.city)}</td>
                   <td>${escapeHtml(sangeethaStageLabel(property.stage))}</td>
@@ -4648,7 +5272,7 @@ function sangeethaRenderSummary() {
                 const compliance = sangeethaComplianceStatus(property);
                 const issues = sangeethaOpenIssueCount(property);
                 return `
-                  <tr data-property-id="${escapeHtml(property.id)}">
+                  <tr data-property-open="${escapeHtml(property.id)}" data-property-open-tab="management">
                     <td>${escapeHtml(property.name)}</td>
                     <td>${lease ? `<span class="sd-chip-status ${lease.cls}">${escapeHtml(lease.label)}</span>` : "—"}</td>
                     <td>${compliance ? `<span class="sd-chip-status ${compliance === "expired" ? "bad" : compliance === "expiring" ? "due" : "ok"}">${escapeHtml(compliance)}</span>` : "—"}</td>
@@ -4674,6 +5298,10 @@ function sangeethaRenderSummary() {
 }
 
 function renderSangeethaDashboard() {
+  if (state.sangeethaPropertyId) {
+    return renderSangeethaPropertyDetail();
+  }
+
   return `
     <div class="sangeetha-dashboard">
       <div class="sd-shell">
@@ -4692,7 +5320,7 @@ function renderSangeethaDashboard() {
             <button type="button" data-view="list" class="${sangeethaDashboardState.view === "list" ? "active" : ""}">List</button>
           </nav>
           <div class="sd-actions">
-            <button class="sd-button sd-button-primary" type="button">+ Add Property</button>
+            <button class="sd-button sd-button-primary" type="button" data-sd-action="capture">+ Capture Lead</button>
           </div>
         </header>
         <section class="sd-view ${sangeethaDashboardState.view === "pipeline" ? "active" : ""}" data-view-panel="pipeline">${sangeethaRenderPipeline()}</section>
@@ -4706,14 +5334,25 @@ function renderSangeethaDashboard() {
 
 function bindSangeethaDashboardEvents() {
   const nav = document.getElementById("sd-tabnav");
-  if (nav) {
-    nav.addEventListener("click", (event) => {
-      const button = event.target.closest("button[data-view]");
-      if (!button) return;
-      sangeethaDashboardState.view = button.dataset.view;
+  nav?.querySelectorAll("button[data-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      sangeethaDashboardState.view = button.dataset.view || "dashboard";
       renderHeroPanel();
     });
-  }
+  });
+
+  document.querySelectorAll("[data-sd-action='capture']").forEach((button) => {
+    button.addEventListener("click", () => {
+      openSangeethaLeadCapture();
+    });
+  });
+
+  document.querySelectorAll("[data-pipeline-focus]").forEach((button) => {
+    button.addEventListener("click", () => {
+      sangeethaDashboardState.pipelineFocus = button.dataset.pipelineFocus || "all";
+      renderHeroPanel();
+    });
+  });
 
   document.querySelectorAll("[data-view-panel='map'] .sd-chip[data-layer]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -4763,6 +5402,95 @@ function bindSangeethaDashboardEvents() {
       renderHeroPanel();
     });
   }
+
+  document.querySelectorAll("[data-stage-drop]").forEach((column) => {
+    column.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      column.classList.add("drag-over");
+    });
+    column.addEventListener("dragleave", () => {
+      column.classList.remove("drag-over");
+    });
+    column.addEventListener("drop", (event) => {
+      event.preventDefault();
+      column.classList.remove("drag-over");
+      const propertyId = event.dataTransfer?.getData("text/property-id");
+      const nextStage = column.dataset.stageDrop;
+      if (!propertyId || !nextStage) return;
+      if (nextStage === "rejected") {
+        const property = sangeethaPropertyById(propertyId);
+        const reason = window.prompt(`Why reject ${property?.name ?? "this lead"}?`, property?.rejectionReason ?? "Rejected after review");
+        if (reason === null) return;
+        sangeethaUpdatePropertyStage(propertyId, nextStage, { reason: reason.trim() || "Rejected after review" });
+        return;
+      }
+      sangeethaUpdatePropertyStage(propertyId, nextStage);
+    });
+  });
+
+  document.querySelectorAll("[draggable='true'][data-property-id]").forEach((card) => {
+    card.addEventListener("dragstart", (event) => {
+      event.dataTransfer?.setData("text/property-id", card.dataset.propertyId || "");
+      event.dataTransfer?.setData("text/property-stage", card.dataset.propertyStage || "");
+      card.classList.add("is-dragging");
+    });
+    card.addEventListener("dragend", () => {
+      card.classList.remove("is-dragging");
+      document.querySelectorAll("[data-stage-drop].drag-over").forEach((column) => column.classList.remove("drag-over"));
+    });
+  });
+
+  document.querySelectorAll("[data-stage-target]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const propertyId = button.dataset.stageProperty || button.closest("[data-property-id]")?.dataset.propertyId || "";
+      const nextStage = button.dataset.stageTarget || "";
+      if (!propertyId || !nextStage) return;
+      if (nextStage === "rejected") {
+        const property = sangeethaPropertyById(propertyId);
+        const reason = window.prompt(`Why reject ${property?.name ?? "this lead"}?`, property?.rejectionReason ?? "Rejected after review");
+        if (reason === null) return;
+        sangeethaUpdatePropertyStage(propertyId, nextStage, { reason: reason.trim() || "Rejected after review" });
+        return;
+      }
+      sangeethaUpdatePropertyStage(propertyId, nextStage);
+    });
+  });
+
+  document.querySelectorAll("[data-property-open]").forEach((item) => {
+    item.addEventListener("click", (event) => {
+      event.stopPropagation?.();
+      const propertyId = item.dataset.propertyOpen || item.dataset.propertyId || "";
+      const tab = item.dataset.propertyOpenTab || "overview";
+      if (!propertyId) return;
+      sangeethaOpenProperty(propertyId, tab);
+    });
+  });
+
+  document.querySelectorAll("[data-sangeetha-close-detail]").forEach((button) => {
+    button.addEventListener("click", () => {
+      sangeethaCloseProperty();
+    });
+  });
+
+  document.querySelectorAll("[data-sangeetha-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.sangeethaPropertyTab = button.dataset.sangeethaTab || "overview";
+      renderHeroPanel();
+    });
+  });
+
+  document.querySelectorAll("[data-sangeetha-action='close']").forEach((button) => {
+    button.addEventListener("click", () => {
+      sangeethaCloseProperty();
+    });
+  });
+
+  document.querySelectorAll("[data-sangeetha-action='capture']").forEach((button) => {
+    button.addEventListener("click", () => {
+      openSangeethaLeadCapture();
+    });
+  });
 
   document.querySelectorAll("[data-view-panel='list'] th[data-sort]").forEach((th) => {
     th.addEventListener("click", () => {
@@ -5663,6 +6391,14 @@ function bindEvents() {
   el.formElement.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (state.modalEntity === "user") saveAdminUser();
+    else if (state.modalEntity === "sangeetha-lead") {
+      try {
+        saveSangeethaLeadCapture();
+      } catch (error) {
+        console.error("Failed to save Sangeetha lead", error);
+        window.alert(`Save failed: ${error?.message ?? "Unknown error"}`);
+      }
+    }
     else {
       try {
         await saveRecord();
@@ -5735,6 +6471,10 @@ function bindEvents() {
     if (event.key !== "Escape") return;
     if (el.confirmModal.classList.contains("open")) {
       closeDeleteConfirm(false);
+      return;
+    }
+    if (state.sangeethaPropertyId) {
+      sangeethaCloseProperty();
       return;
     }
     closeForm();
