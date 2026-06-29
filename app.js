@@ -167,8 +167,9 @@ const tables = [
   },
 ];
 
-const SUPABASE_URL = "https://enozxcriirsytgrjcxbt.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_tULBf6UJrmdpNRdeb5SQmw_VOAoUhpr";
+const SUPABASE_URL = "https://bnzkqkwxjseksvgccwid.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_PSWbQARLq3i8ryb_eUv1ow_PwLHYxyH";
+const LOGO_URL = "https://bnzkqkwxjseksvgccwid.supabase.co/storage/v1/object/public/logos/logo.png";
 const APP_TIMEZONE = "Asia/Kolkata";
 const REMOTE_TABLE_KEYS = new Set(tables.map((table) => table.key));
 const supabaseClientFactory = globalThis.supabase?.createClient ?? null;
@@ -4678,7 +4679,7 @@ function renderSangeethaDashboard() {
       <div class="sd-shell">
         <header class="sd-header">
           <div class="sd-brand">
-            <img class="sd-mark" src="logo.png" alt="Sangeetha Mobiles logo" />
+            <img class="sd-mark" src="${LOGO_URL}" alt="Sangeetha Mobiles logo" />
             <div>
               <div class="sd-brand-name">SANGEETHA MOBILES</div>
               <div class="sd-brand-sub">store lifecycle &amp; GIS · prototype</div>
