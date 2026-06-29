@@ -4359,11 +4359,11 @@ let sangeethaProperties = [
 ];
 
 const sangeethaDashboardState = {
-  view: "dashboard",
+  view: "map",
   layer: "all",
   pipelineFocus: "all",
   health: false,
-  mapFiltersOpen: true,
+  mapFiltersOpen: false,
   stages: new Set(sangeethaStages.map((stage) => stage.key)),
   cities: new Set([...new Set(sangeethaProperties.map((property) => property.city))]),
   sortKey: "name",
@@ -4376,8 +4376,27 @@ function sangeethaStageLabel(key) {
   return sangeethaStages.find((stage) => stage.key === key)?.label ?? key;
 }
 
+function sangeethaPinAddressLabel(property) {
+  const locality = String(property.locality || property.name || "").trim();
+  const floor = String(property.floor || "").trim();
+  if (locality && floor) return `${locality} · ${floor} floor`;
+  return locality || property.name || "";
+}
+
 function sangeethaPropertyById(propertyId) {
   return sangeethaProperties.find((property) => property.id === propertyId) ?? null;
+}
+
+function sangeethaAllStagesSelected() {
+  return sangeethaDashboardState.stages.size === sangeethaStages.length;
+}
+
+function sangeethaAllCitiesSelected() {
+  return sangeethaDashboardState.cities.size === new Set(sangeethaProperties.map((property) => property.city)).size;
+}
+
+function sangeethaAllCityNames() {
+  return [...new Set(sangeethaProperties.map((property) => property.city))];
 }
 
 function sangeethaStageIndex(stageKey) {
@@ -4753,25 +4772,15 @@ function renderSangeethaLeadCaptureForm() {
         <input name="sangeetha_frontage" type="number" inputmode="numeric" min="0" placeholder="16" required />
       </label>
     </div>
-    <div class="sd-capture-map-block">
-      <div class="sd-capture-map-head">
-        <strong>Pin drop</strong>
-        <span>Tap the box, then fine-tune with the sliders.</span>
+    <div class="sd-capture-location-block">
+      <div class="sd-capture-location-head">
+        <strong>Location</strong>
+        <span>Use the device location for this lead.</span>
       </div>
-      <div class="sd-capture-map" data-capture-map>
-        <div class="sd-capture-map-grid"></div>
-        <div class="sd-capture-map-pin" data-capture-pin style="left:50%; top:50%;"></div>
-      </div>
-      <div class="sd-capture-coordinates">
-        <label class="sd-capture-field">
-          <span>Pin x</span>
-          <input name="sangeetha_pin_x" type="range" min="0" max="100" value="50" />
-        </label>
-        <label class="sd-capture-field">
-          <span>Pin y</span>
-          <input name="sangeetha_pin_y" type="range" min="0" max="100" value="50" />
-        </label>
-      </div>
+      <button class="sd-location-button" type="button" data-capture-location>Use current location</button>
+      <div class="sd-location-status" data-location-status>Location not captured yet.</div>
+      <input name="sangeetha_lat" type="hidden" value="" />
+      <input name="sangeetha_lon" type="hidden" value="" />
     </div>
     <label class="sd-capture-field sd-capture-photo">
       <span>Photo</span>
@@ -4796,30 +4805,34 @@ function openSangeethaLeadCapture() {
 }
 
 function bindSangeethaCaptureForm() {
-  const pinX = el.formElement.querySelector('input[name="sangeetha_pin_x"]');
-  const pinY = el.formElement.querySelector('input[name="sangeetha_pin_y"]');
-  const map = el.formElement.querySelector("[data-capture-map]");
-  const pin = el.formElement.querySelector("[data-capture-pin]");
   const photoInput = el.formElement.querySelector('input[name="sangeetha_photo"]');
   const photoPreview = el.formElement.querySelector("[data-photo-preview]");
+  const locationButton = el.formElement.querySelector("[data-capture-location]");
+  const locationStatus = el.formElement.querySelector("[data-location-status]");
+  const latInput = el.formElement.querySelector('input[name="sangeetha_lat"]');
+  const lonInput = el.formElement.querySelector('input[name="sangeetha_lon"]');
 
-  const syncPin = () => {
-    if (!(pin instanceof HTMLElement)) return;
-    const x = Number(pinX instanceof HTMLInputElement ? pinX.value : 50);
-    const y = Number(pinY instanceof HTMLInputElement ? pinY.value : 50);
-    pin.style.left = `${x}%`;
-    pin.style.top = `${y}%`;
-  };
+  locationButton?.addEventListener("click", () => {
+    if (!(latInput instanceof HTMLInputElement) || !(lonInput instanceof HTMLInputElement) || !(locationStatus instanceof HTMLElement)) return;
+    if (!navigator.geolocation) {
+      locationStatus.textContent = "Location access is not available on this device.";
+      return;
+    }
 
-  pinX?.addEventListener("input", syncPin);
-  pinY?.addEventListener("input", syncPin);
-  map?.addEventListener("click", (event) => {
-    const rect = map.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
-    if (pinX instanceof HTMLInputElement) pinX.value = String(Math.round(x));
-    if (pinY instanceof HTMLInputElement) pinY.value = String(Math.round(y));
-    syncPin();
+    locationStatus.textContent = "Getting current location...";
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = Number(position.coords.latitude).toFixed(6);
+        const lon = Number(position.coords.longitude).toFixed(6);
+        latInput.value = lat;
+        lonInput.value = lon;
+        locationStatus.textContent = `Using current location: ${lat}, ${lon}`;
+      },
+      () => {
+        locationStatus.textContent = "Could not fetch current location. You can still save without it.";
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
   });
 
   photoInput?.addEventListener("change", () => {
@@ -4836,7 +4849,6 @@ function bindSangeethaCaptureForm() {
     reader.readAsDataURL(file);
   });
 
-  syncPin();
 }
 
 function saveSangeethaLeadCapture() {
@@ -4849,19 +4861,21 @@ function saveSangeethaLeadCapture() {
   const rsf = Number(formData.get("sangeetha_rsf") ?? 0);
   const size = Number(formData.get("sangeetha_size") ?? 0);
   const frontage = Number(formData.get("sangeetha_frontage") ?? 0);
-  const pinX = Number(formData.get("sangeetha_pin_x") ?? 50);
-  const pinY = Number(formData.get("sangeetha_pin_y") ?? 50);
+  const latField = String(formData.get("sangeetha_lat") ?? "").trim();
+  const lonField = String(formData.get("sangeetha_lon") ?? "").trim();
   const file = el.formElement.querySelector('input[name="sangeetha_photo"]')?.files?.[0] ?? null;
   const photoUrl = file ? URL.createObjectURL(file) : "";
-  const geo = sangeethaMapFromPoint(pinX, pinY);
+  const fallbackGeo = sangeethaMapFromPoint(50, 50);
+  const lat = latField ? Number(latField) : Number(fallbackGeo.lat.toFixed(3));
+  const lon = lonField ? Number(lonField) : Number(fallbackGeo.lon.toFixed(3));
 
   const nextProperty = {
     id: `sg-${Date.now()}`,
     name,
     city,
     locality,
-    lat: Number(geo.lat.toFixed(3)),
-    lon: Number(geo.lon.toFixed(3)),
+    lat,
+    lon,
     stage: "lead",
     floor: "Ground",
     frontage,
@@ -4902,59 +4916,33 @@ function renderSangeethaPropertyDetail() {
   const tab = state.sangeethaPropertyTab || "overview";
 
   return `
-    <div class="sangeetha-dashboard">
-      <div class="sd-shell">
-        <header class="sd-header">
-          <div class="sd-brand">
-            <img class="sd-mark" src="${LOGO_URL}" alt="Sangeetha Mobiles logo" />
-            <div>
-              <div class="sd-brand-name">SANGEETHA MOBILES</div>
-              <div class="sd-brand-sub">store lifecycle &amp; GIS · prototype</div>
-            </div>
-          </div>
-          <nav class="sd-tabs" id="sd-tabnav">
-            <button type="button" data-view="dashboard" class="${sangeethaDashboardState.view === "dashboard" ? "active" : ""}">Dashboard</button>
-            <button type="button" data-view="pipeline" class="${sangeethaDashboardState.view === "pipeline" ? "active" : ""}">Pipeline</button>
-            <button type="button" data-view="map" class="${sangeethaDashboardState.view === "map" ? "active" : ""}">Map</button>
-            <button type="button" data-view="list" class="${sangeethaDashboardState.view === "list" ? "active" : ""}">List</button>
-          </nav>
-          <div class="sd-actions">
-            <button class="sd-button sd-button-primary" type="button" data-sd-action="capture">+ Capture Lead</button>
-          </div>
-        </header>
-        <section class="sd-view active" data-view-panel="detail">
-          <div class="sd-property-detail">
-            <div class="sd-property-detail-head">
-              <div class="detail-header-main">
-                <button class="detail-back-button" type="button" data-sangeetha-close-detail aria-label="Back to board">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="m15 18-6-6 6-6"></path>
-                  </svg>
-                </button>
-                <div class="detail-title-block">
-                  <span class="detail-title-icon tone-3" aria-hidden="true">${escapeHtml(property.name.charAt(0))}</span>
-                  <div class="detail-title-copy">
-                    <div class="detail-eyebrow">${escapeHtml(property.city)} · ${escapeHtml(sangeethaStageLabel(property.stage))}</div>
-                    <h2>${escapeHtml(property.name)}</h2>
-                  </div>
-                </div>
-              </div>
-              <div class="detail-actions">
-                <button class="record-action-button" type="button" data-sangeetha-action="capture">Capture lead</button>
-                <button class="record-action-button" type="button" data-sangeetha-action="close">Close</button>
+    <div class="sangeetha-dashboard sd-detail-page">
+      <section class="sd-property-detail">
+        <div class="sd-property-detail-head">
+          <div class="detail-header-main">
+            <button class="detail-back-button" type="button" data-sangeetha-close-detail aria-label="Back to map">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6"></path>
+              </svg>
+            </button>
+            <div class="detail-title-block">
+              <span class="detail-title-icon tone-3" aria-hidden="true">${escapeHtml(property.name.charAt(0))}</span>
+              <div class="detail-title-copy">
+                <div class="detail-eyebrow">${escapeHtml(property.city)} · ${escapeHtml(sangeethaStageLabel(property.stage))}</div>
+                <h2 class="sd-property-title">${escapeHtml(property.name)}</h2>
               </div>
             </div>
-            ${sangeethaDetailTabs()}
-            ${sangeethaRenderPropertyActions(property)}
-            <section class="sd-property-content">
-              ${tab === "review" ? sangeethaRenderPropertyReview(property)
-                : tab === "management" ? sangeethaRenderPropertyManagement(property)
-                  : tab === "media" ? sangeethaRenderPropertyMedia(property)
-                    : sangeethaRenderPropertyOverview(property)}
-            </section>
           </div>
+        </div>
+        ${sangeethaDetailTabs()}
+        ${sangeethaRenderPropertyActions(property)}
+        <section class="sd-property-content">
+          ${tab === "review" ? sangeethaRenderPropertyReview(property)
+            : tab === "management" ? sangeethaRenderPropertyManagement(property)
+              : tab === "media" ? sangeethaRenderPropertyMedia(property)
+                : sangeethaRenderPropertyOverview(property)}
         </section>
-      </div>
+      </section>
     </div>
   `;
 }
@@ -4964,6 +4952,35 @@ function sangeethaGeo(lat, lon) {
     x: (((lon - 74) / 4.5) * 100).toFixed(1),
     y: (((18.5 - lat) / 7) * 100).toFixed(1),
   };
+}
+
+function sangeethaMapReferenceCities() {
+  const grouped = new Map();
+
+  sangeethaProperties.forEach((property) => {
+    if (!property.city || typeof property.lat !== "number" || typeof property.lon !== "number") return;
+    if (!grouped.has(property.city)) {
+      grouped.set(property.city, { city: property.city, lat: property.lat, lon: property.lon, count: 1 });
+      return;
+    }
+    const current = grouped.get(property.city);
+    current.lat = (current.lat * current.count + property.lat) / (current.count + 1);
+    current.lon = (current.lon * current.count + property.lon) / (current.count + 1);
+    current.count += 1;
+  });
+
+  return Array.from(grouped.values());
+}
+
+function sangeethaMapRoutes() {
+  return [
+    ["Belagavi", "Hubballi"],
+    ["Hubballi", "Davanagere"],
+    ["Davanagere", "Tumakuru"],
+    ["Tumakuru", "Bengaluru"],
+    ["Bengaluru", "Mysuru"],
+    ["Mysuru", "Mangaluru"],
+  ];
 }
 
 function sangeethaComplianceStatus(property) {
@@ -5119,6 +5136,19 @@ function sangeethaRenderPipeline() {
 function sangeethaRenderMap() {
   const active = sangeethaVisibleMapProperties();
   const staged = active.filter((property) => sangeethaDashboardState.stages.has(property.stage));
+  const referenceCities = sangeethaMapReferenceCities();
+  const cityLookup = new Map(referenceCities.map((entry) => [entry.city, entry]));
+  const routeMarkup = sangeethaMapRoutes()
+    .map(([from, to]) => {
+      const start = cityLookup.get(from);
+      const end = cityLookup.get(to);
+      if (!start || !end) return "";
+      const startPoint = sangeethaGeo(start.lat, start.lon);
+      const endPoint = sangeethaGeo(end.lat, end.lon);
+      return `<line x1="${startPoint.x}%" y1="${startPoint.y}%" x2="${endPoint.x}%" y2="${endPoint.y}%"></line>`;
+    })
+    .join("");
+
   return `
     <div class="sd-map-shell">
       ${sangeethaDashboardState.mapFiltersOpen ? `
@@ -5139,22 +5169,45 @@ function sangeethaRenderMap() {
             show compliance / lease risk
           </label>
           <h4>Stage</h4>
+          ${sangeethaAllStagesSelected() ? '<div class="sd-filter-summary">All stages</div>' : ""}
           <div class="sd-chip-row" data-sd-chip-group="stage">
             ${sangeethaStages
-              .map((stage) => `<button class="sd-chip ${sangeethaDashboardState.stages.has(stage.key) ? "active" : ""}" type="button" data-stage="${escapeHtml(stage.key)}">${escapeHtml(stage.label)}</button>`)
+              .map((stage) => `<button class="sd-chip ${sangeethaDashboardState.stages.has(stage.key) && !sangeethaAllStagesSelected() ? "active" : ""}" type="button" data-stage="${escapeHtml(stage.key)}">${escapeHtml(stage.label)}</button>`)
               .join("")}
           </div>
           <h4>City</h4>
+          ${sangeethaAllCitiesSelected() ? '<div class="sd-filter-summary">All cities</div>' : ""}
           <div class="sd-chip-row" data-sd-chip-group="city">
-            ${[...new Set(sangeethaProperties.map((property) => property.city))]
-              .map((city) => `<button class="sd-chip ${sangeethaDashboardState.cities.has(city) ? "active" : ""}" type="button" data-city="${escapeHtml(city)}">${escapeHtml(city)}</button>`)
+            ${sangeethaAllCityNames()
+              .map((city) => `<button class="sd-chip ${sangeethaDashboardState.cities.has(city) && !sangeethaAllCitiesSelected() ? "active" : ""}" type="button" data-city="${escapeHtml(city)}">${escapeHtml(city)}</button>`)
               .join("")}
           </div>
         </aside>
-      ` : `
-        <button class="sd-icon-button sd-map-filters-open" type="button" data-map-filters-open aria-label="Open filters" title="Open filters">☰</button>
-      `}
+      ` : ""}
       <div class="sd-map-area">
+        <div class="sd-map-atmosphere" aria-hidden="true">
+          <div class="sd-map-watermark sd-map-watermark-west">Arabian Sea</div>
+          <div class="sd-map-watermark sd-map-watermark-east">Karnataka ground network</div>
+          <div class="sd-map-region sd-map-region-top">North Karnataka</div>
+          <div class="sd-map-region sd-map-region-bottom">South Karnataka</div>
+          <svg class="sd-map-routes" viewBox="0 0 100 100" preserveAspectRatio="none">
+            ${routeMarkup}
+          </svg>
+        </div>
+        <div class="sd-map-topbar">
+          <button class="sd-icon-button sd-map-filters-open" type="button" data-map-filters-open aria-label="Open filters" title="Open filters">☰</button>
+        </div>
+        ${referenceCities
+          .map((entry) => {
+            const point = sangeethaGeo(entry.lat, entry.lon);
+            return `
+              <div class="sd-map-city" style="left:${point.x}%; top:${point.y}%;" aria-hidden="true">
+                <span class="sd-map-city-dot"></span>
+                <span class="sd-map-city-label">${escapeHtml(entry.city)}</span>
+              </div>
+            `;
+          })
+          .join("")}
         ${staged
           .map((property) => {
             const point = sangeethaGeo(property.lat, property.lon);
@@ -5162,6 +5215,7 @@ function sangeethaRenderMap() {
               <button class="sd-pin ${property.stage}${sangeethaDashboardState.health && sangeethaHealthCritical(property) ? " health-bad" : ""}" type="button" style="left:${point.x}%; top:${point.y}%;" data-property-open="${escapeHtml(property.id)}">
                 <span class="dot"></span>
                 <span class="stem"></span>
+                <span class="sd-pin-label">${escapeHtml(sangeethaPinAddressLabel(property))}</span>
               </button>
             `;
           })
@@ -5365,8 +5419,11 @@ function bindSangeethaDashboardEvents() {
     button.addEventListener("click", () => {
       const key = button.dataset.stage;
       if (!key) return;
-      if (sangeethaDashboardState.stages.has(key)) sangeethaDashboardState.stages.delete(key);
-      else sangeethaDashboardState.stages.add(key);
+      if (sangeethaDashboardState.stages.size === 1 && sangeethaDashboardState.stages.has(key)) {
+        sangeethaDashboardState.stages = new Set(sangeethaStages.map((stage) => stage.key));
+      } else {
+        sangeethaDashboardState.stages = new Set([key]);
+      }
       renderHeroPanel();
     });
   });
@@ -5375,8 +5432,11 @@ function bindSangeethaDashboardEvents() {
     button.addEventListener("click", () => {
       const city = button.dataset.city;
       if (!city) return;
-      if (sangeethaDashboardState.cities.has(city)) sangeethaDashboardState.cities.delete(city);
-      else sangeethaDashboardState.cities.add(city);
+      if (sangeethaDashboardState.cities.size === 1 && sangeethaDashboardState.cities.has(city)) {
+        sangeethaDashboardState.cities = new Set(sangeethaAllCityNames());
+      } else {
+        sangeethaDashboardState.cities = new Set([city]);
+      }
       renderHeroPanel();
     });
   });
