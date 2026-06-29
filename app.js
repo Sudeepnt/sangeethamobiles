@@ -5136,6 +5136,55 @@ function sangeethaRenderMap() {
   const staged = active.filter((property) => sangeethaDashboardState.stages.has(property.stage));
   const referenceCities = sangeethaMapReferenceCities();
   const cityLookup = new Map(referenceCities.map((entry) => [entry.city, entry]));
+  const streetLines = [
+    { cls: "major h", x: 0, y: 16, w: 100, h: 0 },
+    { cls: "major h", x: 0, y: 36, w: 100, h: 0 },
+    { cls: "major h", x: 0, y: 58, w: 100, h: 0 },
+    { cls: "major h", x: 0, y: 79, w: 100, h: 0 },
+    { cls: "major v", x: 14, y: 0, w: 0, h: 100 },
+    { cls: "major v", x: 34, y: 0, w: 0, h: 100 },
+    { cls: "major v", x: 57, y: 0, w: 0, h: 100 },
+    { cls: "major v", x: 78, y: 0, w: 0, h: 100 },
+    { cls: "minor h", x: 8, y: 10, w: 34, h: 0 },
+    { cls: "minor h", x: 39, y: 11, w: 30, h: 0 },
+    { cls: "minor h", x: 62, y: 10, w: 24, h: 0 },
+    { cls: "minor h", x: 5, y: 26, w: 27, h: 0 },
+    { cls: "minor h", x: 37, y: 26, w: 36, h: 0 },
+    { cls: "minor h", x: 63, y: 28, w: 28, h: 0 },
+    { cls: "minor h", x: 8, y: 45, w: 29, h: 0 },
+    { cls: "minor h", x: 41, y: 45, w: 34, h: 0 },
+    { cls: "minor h", x: 66, y: 49, w: 20, h: 0 },
+    { cls: "minor h", x: 11, y: 68, w: 22, h: 0 },
+    { cls: "minor h", x: 38, y: 68, w: 39, h: 0 },
+    { cls: "minor h", x: 62, y: 71, w: 26, h: 0 },
+    { cls: "minor h", x: 10, y: 89, w: 26, h: 0 },
+    { cls: "minor h", x: 40, y: 89, w: 34, h: 0 },
+    { cls: "minor h", x: 68, y: 90, w: 20, h: 0 },
+    { cls: "minor v", x: 8, y: 6, w: 0, h: 23 },
+    { cls: "minor v", x: 24, y: 6, w: 0, h: 23 },
+    { cls: "minor v", x: 46, y: 6, w: 0, h: 22 },
+    { cls: "minor v", x: 68, y: 6, w: 0, h: 24 },
+    { cls: "minor v", x: 88, y: 7, w: 0, h: 20 },
+    { cls: "minor v", x: 6, y: 34, w: 0, h: 18 },
+    { cls: "minor v", x: 26, y: 33, w: 0, h: 21 },
+    { cls: "minor v", x: 48, y: 33, w: 0, h: 22 },
+    { cls: "minor v", x: 68, y: 33, w: 0, h: 21 },
+    { cls: "minor v", x: 90, y: 34, w: 0, h: 19 },
+    { cls: "minor v", x: 9, y: 56, w: 0, h: 18 },
+    { cls: "minor v", x: 29, y: 55, w: 0, h: 22 },
+    { cls: "minor v", x: 49, y: 57, w: 0, h: 20 },
+    { cls: "minor v", x: 71, y: 58, w: 0, h: 21 },
+    { cls: "minor v", x: 87, y: 58, w: 0, h: 18 },
+  ];
+  const avenueLabels = [
+    { name: "8th Street", x: 68, y: 18, rotate: 0 },
+    { name: "Market Road", x: 18, y: 38, rotate: -65 },
+    { name: "Link Road", x: 36, y: 12, rotate: -90 },
+    { name: "7th Main", x: 54, y: 44, rotate: -90 },
+    { name: "14th Avenue", x: 72, y: 60, rotate: 0 },
+    { name: "Ring Road", x: 18, y: 82, rotate: 0 },
+    { name: "1st Block Rd", x: 82, y: 40, rotate: -90 },
+  ];
   const routeMarkup = sangeethaMapRoutes()
     .map(([from, to]) => {
       const start = cityLookup.get(from);
@@ -5184,10 +5233,25 @@ function sangeethaRenderMap() {
       ` : ""}
       <div class="sd-map-area">
         <div class="sd-map-atmosphere" aria-hidden="true">
-          <div class="sd-map-watermark sd-map-watermark-west">Arabian Sea</div>
-          <div class="sd-map-watermark sd-map-watermark-east">Karnataka ground network</div>
-          <div class="sd-map-region sd-map-region-top">North Karnataka</div>
-          <div class="sd-map-region sd-map-region-bottom">South Karnataka</div>
+          <div class="sd-map-street-grid">
+            ${streetLines
+              .map((line) => `<span class="sd-map-street ${line.cls}" style="left:${line.x}%; top:${line.y}%; width:${line.w}%; height:${line.h}%;"></span>`)
+              .join("")}
+          </div>
+          <div class="sd-map-blocks">
+            <span class="sd-map-block" style="left:7%; top:7%; width:24%; height:18%;"></span>
+            <span class="sd-map-block" style="left:38%; top:7%; width:28%; height:18%;"></span>
+            <span class="sd-map-block" style="left:69%; top:8%; width:19%; height:17%;"></span>
+            <span class="sd-map-block" style="left:8%; top:35%; width:22%; height:15%;"></span>
+            <span class="sd-map-block" style="left:40%; top:35%; width:28%; height:15%;"></span>
+            <span class="sd-map-block" style="left:70%; top:37%; width:17%; height:14%;"></span>
+            <span class="sd-map-block" style="left:11%; top:58%; width:18%; height:15%;"></span>
+            <span class="sd-map-block" style="left:42%; top:58%; width:26%; height:15%;"></span>
+            <span class="sd-map-block" style="left:71%; top:59%; width:15%; height:15%;"></span>
+          </div>
+          ${avenueLabels
+            .map((label) => `<div class="sd-map-road-label" style="left:${label.x}%; top:${label.y}%; transform: translate(-50%, -50%) rotate(${label.rotate}deg);">${escapeHtml(label.name)}</div>`)
+            .join("")}
           <svg class="sd-map-routes" viewBox="0 0 100 100" preserveAspectRatio="none">
             ${routeMarkup}
           </svg>
@@ -5209,23 +5273,19 @@ function sangeethaRenderMap() {
         ${staged
           .map((property) => {
             const point = sangeethaGeo(property.lat, property.lon);
+            const photoUrl = property.photoUrl || property.photo || property.media?.photoUrl || "";
             return `
               <button class="sd-pin ${property.stage}${sangeethaDashboardState.health && sangeethaHealthCritical(property) ? " health-bad" : ""}" type="button" style="left:${point.x}%; top:${point.y}%;" data-property-open="${escapeHtml(property.id)}">
-                <span class="dot"></span>
+                <span class="sd-pin-head">${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(property.name)}" />` : `<span class="sd-pin-fallback">${escapeHtml((property.name || "S").charAt(0).toUpperCase())}</span>`}</span>
                 <span class="stem"></span>
-                <span class="sd-pin-label">${escapeHtml(sangeethaPinAddressLabel(property))}</span>
+                <span class="sd-pin-label">
+                  <span class="sd-pin-stage">${escapeHtml(sangeethaStageLabel(property.stage))}</span>
+                  <span class="sd-pin-address">${escapeHtml(sangeethaPinAddressLabel(property))}</span>
+                </span>
               </button>
             `;
           })
           .join("")}
-        <div class="sd-legend">
-          <div class="sd-legend-title">Pin = stage</div>
-          ${sangeethaStages
-            .filter((stage) => !stage.terminal)
-            .map((stage) => `<div class="sd-legend-row"><span class="sd-sw sd-stage-${escapeHtml(stage.key)}"></span>${escapeHtml(stage.label)}</div>`)
-            .join("")}
-          <div class="sd-legend-row"><span class="sd-sw sd-dashed"></span>Rejected / Closed</div>
-        </div>
       </div>
     </div>
   `;

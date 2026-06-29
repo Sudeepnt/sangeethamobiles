@@ -141,14 +141,18 @@ body.modal-open {
 
 .force-mobile .sd-tabs {
   width: 100%;
-  overflow-x: auto;
-  justify-content: flex-start;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: stretch;
   padding: 3px;
 }
 
 .force-mobile .sd-tabs button {
-  padding: 9px 12px;
-  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 8px;
+  text-align: center;
 }
 
 .force-mobile .sd-actions,
@@ -195,6 +199,7 @@ body.modal-open {
 
 .force-mobile .sd-map-shell {
   grid-template-columns: 1fr;
+  min-height: calc(100dvh - 160px);
 }
 
 .force-mobile .sd-map-filters {
@@ -204,7 +209,7 @@ body.modal-open {
 }
 
 .force-mobile .sd-map-area {
-  min-height: 52vh;
+  min-height: calc(100dvh - 160px);
 }
 
 .force-mobile .sd-list-shell {
@@ -228,11 +233,12 @@ body.modal-open {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
   background: transparent;
+  padding: 0 14px;
 }
 
 .force-mobile .sd-summary-grid .sd-stat {
-  border-right: 1px solid #111;
-  border-bottom: 1px solid #111;
+  border-right: 1px solid rgba(17, 17, 17, 0.12);
+  border-bottom: 1px solid rgba(17, 17, 17, 0.12);
 }
 
 .force-mobile .sd-summary-grid .sd-stat:nth-child(2n) {
@@ -3479,9 +3485,7 @@ input[type="search"] {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 18% 24%, rgba(208, 196, 167, 0.32), transparent 22%),
-    radial-gradient(circle at 82% 72%, rgba(193, 214, 206, 0.28), transparent 24%),
-    linear-gradient(180deg, #faf7f1 0%, #f4efe4 100%);
+    linear-gradient(180deg, #f7f5ef 0%, #f2f0ea 100%);
   min-height: 100%;
 }
 
@@ -3489,19 +3493,20 @@ input[type="search"] {
   content: "";
   position: absolute;
   inset: 0;
-  background-image:
-    repeating-linear-gradient(0deg, transparent 0, transparent 43px, rgba(17, 17, 17, 0.04) 44px),
-    repeating-linear-gradient(90deg, transparent 0, transparent 43px, rgba(17, 17, 17, 0.04) 44px);
-  opacity: 0.75;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(100, 142, 229, 0.06), transparent 20%),
+    radial-gradient(circle at 22% 74%, rgba(100, 142, 229, 0.04), transparent 16%);
   pointer-events: none;
 }
 
 .sd-map-area::after {
   content: "";
   position: absolute;
-  inset: 8% 6% 6% 9%;
-  border: 1px solid rgba(17, 17, 17, 0.08);
-  border-radius: 38% 42% 36% 34% / 30% 34% 44% 38%;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(17, 17, 17, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.018) 1px, transparent 1px);
+  background-size: 42px 42px;
   opacity: 0.55;
   pointer-events: none;
 }
@@ -3521,49 +3526,78 @@ input[type="search"] {
 }
 
 .sd-map-routes line {
-  stroke: rgba(17, 17, 17, 0.13);
-  stroke-width: 0.35;
+  stroke: rgba(100, 142, 229, 0.32);
+  stroke-width: 0.45;
   stroke-linecap: round;
-  stroke-dasharray: 1.2 1.6;
+  stroke-dasharray: 0;
 }
 
-.sd-map-watermark,
+.sd-map-street-grid,
+.sd-map-blocks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sd-map-street {
+  position: absolute;
+  display: block;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 0 0 1px rgba(17, 17, 17, 0.03);
+}
+
+.sd-map-street.h {
+  height: 6px !important;
+}
+
+.sd-map-street.v {
+  width: 6px !important;
+}
+
+.sd-map-street.major {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 0 0 1px rgba(17, 17, 17, 0.035);
+}
+
+.sd-map-street.minor {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 0 1px rgba(17, 17, 17, 0.025);
+}
+
+.sd-map-block {
+  position: absolute;
+  display: block;
+  background: rgba(241, 238, 232, 0.96);
+  border: 1px solid rgba(17, 17, 17, 0.03);
+  border-radius: 6px;
+}
+
+.sd-map-road-label,
 .sd-map-region {
   position: absolute;
-  color: rgba(17, 17, 17, 0.34);
+  color: rgba(17, 17, 17, 0.28);
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-weight: 700;
-}
-
-.sd-map-watermark {
-  font-size: 9px;
+  letter-spacing: 0.12em;
+  font-weight: 600;
 }
 
 .sd-map-region {
   font-size: 10px;
 }
 
-.sd-map-watermark-west {
-  left: 3%;
-  top: 54%;
-  transform: rotate(-90deg);
-  transform-origin: left top;
-}
-
-.sd-map-watermark-east {
-  right: 5%;
-  top: 14%;
+.sd-map-road-label {
+  font-size: 7px;
+  white-space: nowrap;
 }
 
 .sd-map-region-top {
   left: 21%;
-  top: 13%;
+  top: 9%;
 }
 
 .sd-map-region-bottom {
-  left: 44%;
-  bottom: 10%;
+  left: 46%;
+  bottom: 8%;
 }
 
 .sd-map-topbar {
@@ -3616,13 +3650,29 @@ input[type="search"] {
   z-index: 2;
 }
 
-.sd-pin .dot {
-  width: 14px;
-  height: 14px;
+.sd-pin-head {
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  border: 1.6px solid #111;
+  border: 2px solid #fff;
   background: #fff;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px #111;
+}
+
+.sd-pin-head img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
+}
+
+.sd-pin-fallback {
+  font-size: 10px;
+  font-weight: 800;
+  color: #111;
 }
 
 .sd-pin .stem {
@@ -3633,38 +3683,39 @@ input[type="search"] {
   margin: 0 auto;
 }
 
-.sd-pin.lead .dot {
-  background: #fff;
+.sd-pin.lead .sd-pin-head {
+  box-shadow: 0 0 0 2px #fff;
 }
 
-.sd-pin.under_review .dot {
-  background: #e5e5e5;
+.sd-pin.under_review .sd-pin-head {
+  box-shadow: 0 0 0 2px #cfcfcf;
 }
 
-.sd-pin.shortlisted .dot {
-  background: #d6d6d6;
+.sd-pin.shortlisted .sd-pin-head {
+  box-shadow: 0 0 0 2px #8f8f8f;
 }
 
-.sd-pin.approved .dot {
-  background: #9b9b9b;
+.sd-pin.approved .sd-pin-head {
+  box-shadow: 0 0 0 2px #111;
 }
 
-.sd-pin.fitout .dot {
-  background: #4b4b4b;
+.sd-pin.fitout .sd-pin-head {
+  box-shadow: 0 0 0 2px #111, 0 0 0 5px rgba(255, 177, 58, 0.9);
 }
 
-.sd-pin.live .dot {
-  background: #111;
+.sd-pin.live .sd-pin-head {
+  box-shadow: 0 0 0 2px #111, 0 0 0 5px rgba(255, 177, 58, 0.95);
 }
 
-.sd-pin.rejected .dot,
-.sd-pin.closed .dot {
-  background: #fff;
-  border-style: dashed;
+.sd-pin.rejected .sd-pin-head,
+.sd-pin.closed .sd-pin-head {
+  box-shadow: 0 0 0 2px #111;
+  outline: 2px dashed #111;
+  outline-offset: 3px;
 }
 
-.sd-pin.health-bad .dot {
-  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.18);
+.sd-pin.health-bad .sd-pin-head {
+  box-shadow: 0 0 0 2px #111, 0 0 0 5px rgba(17, 17, 17, 0.18), 0 0 0 8px rgba(255, 177, 58, 0.34);
 }
 
 .sd-pin-label {
@@ -3685,28 +3736,25 @@ input[type="search"] {
   text-wrap: balance;
 }
 
-.sd-legend {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  border: 1px solid #111;
-  background: rgba(255, 255, 255, 0.92);
-  padding: 9px 10px;
-  font-size: 10.5px;
+.sd-pin-stage,
+.sd-pin-address {
+  display: block;
 }
 
-.sd-legend-title {
+.sd-pin-stage {
+  font-size: 7px;
   font-weight: 800;
-  text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-bottom: 4px;
+  text-transform: uppercase;
+  color: rgba(17, 17, 17, 0.62);
+  margin-bottom: 1px;
 }
 
-.sd-legend-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
+.sd-pin-address {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #111;
 }
 
 .sd-sw {
