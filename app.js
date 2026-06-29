@@ -1074,9 +1074,12 @@ const jsonColumnDefaults = {
   transactions: { documents: [] },
 };
 
+const hiddenSidebarTableKeys = new Set(["assets", "events"]);
+const visibleSidebarTables = tables.filter((table) => !hiddenSidebarTableKeys.has(table.key));
+
 const sidebarItems = [
   { key: "dashboard", label: "Dashboard", kind: "dashboard", count: null },
-  ...tables.map((table) => ({ key: table.key, label: table.title, kind: "table" })),
+  ...visibleSidebarTables.map((table) => ({ key: table.key, label: table.title, kind: "table" })),
   { key: "gantt", label: "Gantt Chart", kind: "gantt", count: null },
   { key: "admin", label: "Admin", kind: "admin", count: null },
 ];
@@ -2666,7 +2669,7 @@ function renderSidebarFooter() {
 }
 
 function renderBoard() {
-  el.board.innerHTML = tables.map((table) => `
+  el.board.innerHTML = visibleSidebarTables.map((table) => `
     <article class="table-tile" data-open-list="${table.key}">
       <div class="table-tile-head">
         <div class="table-count">${data[table.key].length}</div>
@@ -4338,9 +4341,10 @@ const sangeethaProperties = [
 ];
 
 const sangeethaDashboardState = {
-  view: "pipeline",
+  view: "dashboard",
   layer: "all",
   health: false,
+  mapFiltersOpen: true,
   stages: new Set(sangeethaStages.map((stage) => stage.key)),
   cities: new Set([...new Set(sangeethaProperties.map((property) => property.city))]),
   sortKey: "name",
@@ -4428,13 +4432,13 @@ function sangeethaRenderPipeline() {
   const properties = sangeethaActiveProperties();
   return `
     <div class="sd-toolbar">
-      <div class="sd-eyebrow">Kanban - ground scouting across Karnataka</div>
+      <div class="sd-eyebrow">ground scouting</div>
       <div class="sd-toolbar-actions">
         <button class="sd-button" type="button">+ Add Property</button>
         <button class="sd-button" type="button">+ Report Issue</button>
       </div>
     </div>
-    <div class="sd-board">
+    <div class="sd-board" id="sd-board">
       ${sangeethaStages
         .map((stage) => {
           const items = properties.filter((property) => property.stage === stage.key);
@@ -4492,31 +4496,39 @@ function sangeethaRenderMap() {
   const staged = active.filter((property) => sangeethaDashboardState.stages.has(property.stage));
   return `
     <div class="sd-map-shell">
-      <aside class="sd-map-filters">
-        <h4>Layer</h4>
-        <div class="sd-chip-row" data-sd-chip-group="layer">
-          <button class="sd-chip ${sangeethaDashboardState.layer === "all" ? "active" : ""}" type="button" data-layer="all">All</button>
-          <button class="sd-chip ${sangeethaDashboardState.layer === "pipeline" ? "active" : ""}" type="button" data-layer="pipeline">Pipeline only</button>
-          <button class="sd-chip ${sangeethaDashboardState.layer === "live" ? "active" : ""}" type="button" data-layer="live">Live stores only</button>
-        </div>
-        <h4>Live store health overlay</h4>
-        <label class="sd-toggle">
-          <input type="checkbox" id="sd-health-toggle" ${sangeethaDashboardState.health ? "checked" : ""} />
-          show compliance / lease risk
-        </label>
-        <h4>Stage</h4>
-        <div class="sd-chip-row" data-sd-chip-group="stage">
-          ${sangeethaStages
-            .map((stage) => `<button class="sd-chip ${sangeethaDashboardState.stages.has(stage.key) ? "active" : ""}" type="button" data-stage="${escapeHtml(stage.key)}">${escapeHtml(stage.label)}</button>`)
-            .join("")}
-        </div>
-        <h4>City</h4>
-        <div class="sd-chip-row" data-sd-chip-group="city">
-          ${[...new Set(sangeethaProperties.map((property) => property.city))]
-            .map((city) => `<button class="sd-chip ${sangeethaDashboardState.cities.has(city) ? "active" : ""}" type="button" data-city="${escapeHtml(city)}">${escapeHtml(city)}</button>`)
-            .join("")}
-        </div>
-      </aside>
+      ${sangeethaDashboardState.mapFiltersOpen ? `
+        <aside class="sd-map-filters">
+          <div class="sd-map-filters-head">
+            <div class="sd-map-filters-title">Filters</div>
+            <button class="sd-icon-button" type="button" data-map-filters-close aria-label="Close filters" title="Close filters">×</button>
+          </div>
+          <h4>Layer</h4>
+          <div class="sd-chip-row" data-sd-chip-group="layer">
+            <button class="sd-chip ${sangeethaDashboardState.layer === "all" ? "active" : ""}" type="button" data-layer="all">All</button>
+            <button class="sd-chip ${sangeethaDashboardState.layer === "pipeline" ? "active" : ""}" type="button" data-layer="pipeline">Pipeline only</button>
+            <button class="sd-chip ${sangeethaDashboardState.layer === "live" ? "active" : ""}" type="button" data-layer="live">Live stores only</button>
+          </div>
+          <h4>Live store health overlay</h4>
+          <label class="sd-toggle">
+            <input type="checkbox" id="sd-health-toggle" ${sangeethaDashboardState.health ? "checked" : ""} />
+            show compliance / lease risk
+          </label>
+          <h4>Stage</h4>
+          <div class="sd-chip-row" data-sd-chip-group="stage">
+            ${sangeethaStages
+              .map((stage) => `<button class="sd-chip ${sangeethaDashboardState.stages.has(stage.key) ? "active" : ""}" type="button" data-stage="${escapeHtml(stage.key)}">${escapeHtml(stage.label)}</button>`)
+              .join("")}
+          </div>
+          <h4>City</h4>
+          <div class="sd-chip-row" data-sd-chip-group="city">
+            ${[...new Set(sangeethaProperties.map((property) => property.city))]
+              .map((city) => `<button class="sd-chip ${sangeethaDashboardState.cities.has(city) ? "active" : ""}" type="button" data-city="${escapeHtml(city)}">${escapeHtml(city)}</button>`)
+              .join("")}
+          </div>
+        </aside>
+      ` : `
+        <button class="sd-icon-button sd-map-filters-open" type="button" data-map-filters-open aria-label="Open filters" title="Open filters">☰</button>
+      `}
       <div class="sd-map-area">
         ${staged
           .map((property) => {
@@ -4666,17 +4678,17 @@ function renderSangeethaDashboard() {
       <div class="sd-shell">
         <header class="sd-header">
           <div class="sd-brand">
-            <div class="sd-mark"></div>
+            <img class="sd-mark" src="logo.png" alt="Sangeetha Mobiles logo" />
             <div>
               <div class="sd-brand-name">SANGEETHA MOBILES</div>
               <div class="sd-brand-sub">store lifecycle &amp; GIS · prototype</div>
             </div>
           </div>
           <nav class="sd-tabs" id="sd-tabnav">
+            <button type="button" data-view="dashboard" class="${sangeethaDashboardState.view === "dashboard" ? "active" : ""}">Dashboard</button>
             <button type="button" data-view="pipeline" class="${sangeethaDashboardState.view === "pipeline" ? "active" : ""}">Pipeline</button>
             <button type="button" data-view="map" class="${sangeethaDashboardState.view === "map" ? "active" : ""}">Map</button>
             <button type="button" data-view="list" class="${sangeethaDashboardState.view === "list" ? "active" : ""}">List</button>
-            <button type="button" data-view="dashboard" class="${sangeethaDashboardState.view === "dashboard" ? "active" : ""}">Dashboard</button>
           </nav>
           <div class="sd-actions">
             <button class="sd-button sd-button-primary" type="button">+ Add Property</button>
@@ -4729,6 +4741,20 @@ function bindSangeethaDashboardEvents() {
     });
   });
 
+  document.querySelectorAll("[data-map-filters-close]").forEach((button) => {
+    button.addEventListener("click", () => {
+      sangeethaDashboardState.mapFiltersOpen = false;
+      renderHeroPanel();
+    });
+  });
+
+  document.querySelectorAll("[data-map-filters-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      sangeethaDashboardState.mapFiltersOpen = true;
+      renderHeroPanel();
+    });
+  });
+
   const healthToggle = document.getElementById("sd-health-toggle");
   if (healthToggle) {
     healthToggle.addEventListener("change", (event) => {
@@ -4748,6 +4774,7 @@ function bindSangeethaDashboardEvents() {
       renderHeroPanel();
     });
   });
+
 }
 
 function renderDashboard() {
