@@ -1033,6 +1033,7 @@ const state = {
   detailHistory: [],
   sangeethaPropertyId: null,
   sangeethaPropertyTab: "overview",
+  sangeethaMediaPhotoUrl: "",
   recordFilters: {},
   taskExpanded: {},
   ganttWeekStart: null,
@@ -4478,6 +4479,18 @@ function sangeethaOpenProperty(propertyId, tab = "overview") {
 function sangeethaCloseProperty() {
   state.sangeethaPropertyId = null;
   state.sangeethaPropertyTab = "overview";
+  state.sangeethaMediaPhotoUrl = "";
+  renderHeroPanel();
+}
+
+function sangeethaOpenMediaPhoto(photoUrl) {
+  if (!photoUrl) return;
+  state.sangeethaMediaPhotoUrl = photoUrl;
+  renderHeroPanel();
+}
+
+function sangeethaCloseMediaPhoto() {
+  state.sangeethaMediaPhotoUrl = "";
   renderHeroPanel();
 }
 
@@ -4719,15 +4732,17 @@ function sangeethaRenderPropertyManagement(property) {
 function sangeethaRenderPropertyMedia(property) {
   const media = property.media ?? {};
   const docs = Array.isArray(media.documents) ? media.documents : [];
+  const photoUrl = property.photoUrl || property.photo || media.photoUrl || "";
+  const photoCount = Number(media.photos ?? 0) > 0 ? Number(media.photos ?? 0) : photoUrl ? 1 : 0;
   return `
     <div class="sd-detail-panel-grid">
       <section class="sd-detail-panel">
         <h3>Photos</h3>
-        <div class="sd-media-preview">
+        <button class="sd-media-preview sd-media-preview-button" type="button" ${photoUrl ? `data-sangeetha-photo-open="${escapeHtml(photoUrl)}"` : "disabled"}>
           ${sangeethaPropertyPreview(property)}
-        </div>
+        </button>
         <div class="sd-mini-grid">
-          <div><span>Photo count</span><strong>${escapeHtml(String(media.photos ?? 0))}</strong></div>
+          <div><span>Photo count</span><strong>${escapeHtml(String(photoCount))}</strong></div>
           <div><span>Floorplan</span><strong>${media.floorplan ? "Yes" : "No"}</strong></div>
         </div>
       </section>
@@ -4964,6 +4979,14 @@ function renderSangeethaPropertyDetail() {
                 : sangeethaRenderPropertyOverview(property)}
         </section>
       </section>
+      ${state.sangeethaMediaPhotoUrl ? `
+        <div class="sd-photo-lightbox" data-sangeetha-photo-close>
+          <button class="sd-photo-lightbox-close" type="button" aria-label="Close photo viewer" data-sangeetha-photo-close>×</button>
+          <div class="sd-photo-lightbox-shell">
+            <img class="sd-photo-lightbox-image" src="${escapeHtml(state.sangeethaMediaPhotoUrl)}" alt="${escapeHtml(property.name)} full photo" />
+          </div>
+        </div>
+      ` : ""}
     </div>
   `;
 }
@@ -5325,7 +5348,7 @@ function sangeethaRenderList() {
             <th data-sort="size_carpet">Size (sf)</th>
             <th data-sort="lease_expiry">Lease expiry</th>
             <th data-sort="compliance">Compliance</th>
-            <th data-sort="open_issues">Open issues</th>
+            <th data-sort="open_issues">Issues Raised</th>
             <th data-sort="monthly_rent">Monthly rent</th>
           </tr>
         </thead>
@@ -5357,9 +5380,13 @@ function sangeethaRenderList() {
 
 function sangeethaRenderSummary() {
   const liveProperties = sangeethaProperties.filter((property) => property.stage === "live");
-  const totalRent = liveProperties.reduce((sum, property) => sum + (property.lease ? property.lease.rent : 0), 0);
-  const expiringSoon = liveProperties.filter((property) => property.lease && sangeethaDaysUntil(property.lease.expiry) <= 90 && sangeethaDaysUntil(property.lease.expiry) >= 0).length;
-  const openRepairs = liveProperties.reduce((sum, property) => sum + sangeethaOpenIssueCount(property), 0);
+  const glanceMetrics = {
+    totalProperties: 270,
+    liveStores: 150,
+    monthlyRentRollLabel: "₹97L",
+    leasesExpiring: 25,
+    repairTickets: 15,
+  };
   const funnelStages = ["lead", "under_review", "shortlisted", "approved", "fitout", "live"];
   const funnelCounts = funnelStages.map((stage) => sangeethaProperties.filter((property) => property.stage === stage).length);
   const maxCount = Math.max(...funnelCounts, 1);
@@ -5369,13 +5396,16 @@ function sangeethaRenderSummary() {
   });
 
   return `
-    <div class="sd-summary-grid">
-      <div class="sd-stat"><div class="sd-stat-number">${sangeethaProperties.length}</div><div class="sd-stat-label">Total properties</div></div>
-      <div class="sd-stat"><div class="sd-stat-number">${liveProperties.length}</div><div class="sd-stat-label">Live stores</div></div>
-      <div class="sd-stat"><div class="sd-stat-number">₹${(totalRent / 100000).toFixed(1)}L</div><div class="sd-stat-label">Monthly rent roll</div></div>
-      <div class="sd-stat"><div class="sd-stat-number">${expiringSoon}</div><div class="sd-stat-label">Leases expiring ≤90d</div></div>
-      <div class="sd-stat"><div class="sd-stat-number">${openRepairs}</div><div class="sd-stat-label">Open repair tickets</div></div>
-    </div>
+    <section class="sd-summary-panel sd-summary-glance">
+      <h3>Glance</h3>
+      <div class="sd-summary-grid">
+        <div class="sd-stat"><div class="sd-stat-number">${glanceMetrics.totalProperties}</div><div class="sd-stat-label">Total properties</div></div>
+        <div class="sd-stat"><div class="sd-stat-number">${glanceMetrics.liveStores}</div><div class="sd-stat-label">Live stores</div></div>
+        <div class="sd-stat"><div class="sd-stat-number">${glanceMetrics.monthlyRentRollLabel}</div><div class="sd-stat-label">Monthly rent roll</div></div>
+        <div class="sd-stat"><div class="sd-stat-number">${glanceMetrics.leasesExpiring}</div><div class="sd-stat-label">Leases expiring ≤90d</div></div>
+        <div class="sd-stat"><div class="sd-stat-number">${glanceMetrics.repairTickets}</div><div class="sd-stat-label">Open repair tickets</div></div>
+      </div>
+    </section>
     <div class="sd-summary-grid-2">
       <section class="sd-summary-panel">
         <h3>Pipeline - conversion funnel</h3>
@@ -5628,6 +5658,20 @@ function bindSangeethaDashboardEvents() {
   document.querySelectorAll("[data-sangeetha-action='capture']").forEach((button) => {
     button.addEventListener("click", () => {
       openSangeethaLeadCapture();
+    });
+  });
+
+  document.querySelectorAll("[data-sangeetha-photo-open]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      sangeethaOpenMediaPhoto(button.dataset.sangeethaPhotoOpen || "");
+    });
+  });
+
+  document.querySelectorAll("[data-sangeetha-photo-close]").forEach((item) => {
+    item.addEventListener("click", (event) => {
+      if (event.target !== item && !event.target.closest("[data-sangeetha-photo-close]")) return;
+      sangeethaCloseMediaPhoto();
     });
   });
 
